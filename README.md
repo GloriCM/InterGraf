@@ -208,21 +208,6 @@ El cambio deberá:
 
 ---
 
-# Módulo 5: Sistema de Notificaciones
-
-## 5.1 Notificaciones Internas
-
-El sistema deberá enviar notificaciones cuando:
-
-- Se reciba un nuevo pedido
-- Cambie el estado de un pedido
-- Se reciba un mensaje
-- Haya bajo stock
-- Se reciba una nueva reseña
-- Se genere una cotización
-
----
-
 # Requerimientos No Funcionales
 
 - Aplicación móvil (**Android inicialmente**)
