@@ -10,8 +10,7 @@ Campos requeridos:
 - NIT / RUT
 - Dirección legal
 - Ciudad y país
-- Sector gráfico  
-  - Ejemplos: impresión digital, offset, gran formato, diseño, insumos, acabados
+- Sector Empresarial  
 - Correo electrónico corporativo
 - Teléfono de contacto
 - Logo empresarial
@@ -61,13 +60,7 @@ Campos:
 
 - Nombre del producto
 - Descripción técnica  
-  - Tipo de papel  
-  - Gramaje  
-  - Tintas  
-  - Acabados  
-  - Medidas
 - Categoría  
-  - Ej: insumos gráficos, maquinaria, impresión, acabados, diseño
 - Imágenes de alta calidad
 - Precio unitario
 - Precios por volumen *(descuentos por cantidad)*
@@ -104,7 +97,7 @@ Estados disponibles:
 
 - Pendiente
 - En preparación
-- En producción *(clave para sector gráfico)*
+- En producción *(En caso de ser necesario)
 - Enviado
 - Entregado
 - Cancelado
@@ -112,7 +105,7 @@ Estados disponibles:
 Otras funciones:
 
 - Comunicarse con el comprador mediante **mensajería interna**
-- Adjuntar **comprobantes o artes finales** si aplica
+- Adjuntar **comprobantes o documentos internos**
 
 ---
 
