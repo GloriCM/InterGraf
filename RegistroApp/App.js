@@ -9,56 +9,72 @@ import { Picker } from '@react-native-picker/picker';
 //Se importa el array de ciudades, es un archivo externo
 import { colombianCities } from './cities';
 
+//Componente principal de la aplicacion
 export default function App() {
+  //Estado que controla si el checkbox esta marcado
   const [isChecked, setIsChecked] = useState(false);
+  //Estado que controla la ciudad seleccionada
   const [selectedCity, setSelectedCity] = useState('');
 
   return (
+    //Contenedor principal de la aplicacion
     <SafeAreaView style={styles.safeArea}>
+      //Configuracion del estado de la barra de estado del telefono
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
+      //Permite desplazarse verticalmente si el contenido es mas grande que la pantalla
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        //Tarjeta principal que contiene todo el formulario
         <View style={styles.card}>
 
-          {/* Logo Section */}
+          {/*Contenedor del Logo*/}
           <View style={styles.logoContainer}>
-            {/* Using an icon as a placeholder for the logo */}
+            {/*Icono temporal*/}
             <Ionicons name="aperture" size={40} color="#06b6d4" />
+            {/*Nombre de la app*/}
             <Text style={styles.logoText}>INTERGRAF</Text>
           </View>
 
+          {/*Titulo del formulario*/}
           <Text style={styles.title}>Formulario de Afiliacion</Text>
+          {/*Subtitulo del formulario*/}
           <Text style={styles.subtitle}>Validacion de la empresa</Text>
 
-          {/* Form Fields */}
+          {/*Campo de texto para la razon social*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Razon Social:</Text>
             <TextInput style={styles.input} />
           </View>
 
+          {/*Campo de texto para el tipo de documento*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Tipo Documento:</Text>
             <TextInput style={styles.input} />
           </View>
 
+          {/*Campo de texto para el numero de documento*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Numero Documento:</Text>
             <TextInput style={styles.input} />
           </View>
 
+          {/*Campo de texto para la direccion*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Direccion:</Text>
             <TextInput style={styles.input} />
           </View>
 
+          {/*Campo de texto para la ciudad*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Ciudad:</Text>
             <View style={styles.pickerContainer}>
               <Picker
-                selectedValue={selectedCity}
-                onValueChange={(itemValue) => setSelectedCity(itemValue)}
+                selectedValue={selectedCity} //ciudad actualmente seleccionada
+                onValueChange={(itemValue) => setSelectedCity(itemValue)} //actualiza la ciudad seleccionada
                 style={styles.picker}
               >
+                {/*Opcion por defecto*/}
                 <Picker.Item label="Seleccione una ciudad" value="" />
+                {/*Genera la lista de las ciudades*/}
                 {colombianCities.map((city, index) => (
                   <Picker.Item key={index} label={city} value={city} />
                 ))}
@@ -66,44 +82,51 @@ export default function App() {
             </View>
           </View>
 
+          {/*Campo de texto para el sector empresarial*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Sector Empresarial:</Text>
             <TextInput style={styles.input} />
           </View>
 
+          {/*Campo de texto para el correo electronico*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Correo Electronico:</Text>
             <TextInput style={styles.input} keyboardType="email-address" />
           </View>
 
+          {/*Campo de texto para el telefono*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Telefono:</Text>
             <TextInput style={styles.input} keyboardType="phone-pad" />
           </View>
 
+          {/*Campo de texto para la descripcion*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Descripcion:</Text>
             <TextInput style={styles.input} />
           </View>
 
-          {/* Upload Logo Section */}
+          {/*Campo de texto para subir el logo*/}
           <Text style={styles.uploadLabel}>Subir Logo de la empresa:</Text>
           <TouchableOpacity style={styles.uploadButton}>
             <AntDesign name="plus" size={24} color="#475569" />
           </TouchableOpacity>
 
-          {/* Terms and Conditions */}
+          {/*Seccion de aceptacion de terminos y condiciones */}
           <View style={styles.termsContainer}>
             <TouchableOpacity
-              style={[styles.checkbox, isChecked && styles.checkboxActive]}
-              onPress={() => setIsChecked(!isChecked)}
+              style={[styles.checkbox, isChecked && styles.checkboxActive]}//Cambia el color del checkbox si esta marcado
+              onPress={() => setIsChecked(!isChecked)}//Cambia el estado del checkbox
             >
+              {/*Muestra un check si el checkbox esta marcado*/}
               {isChecked && <AntDesign name="check" size={10} color="#fff" />}
             </TouchableOpacity>
+
+            {/*Texto de terminos y condiciones*/}
             <Text style={styles.termsText}>Acepto terminos y condiciones</Text>
           </View>
 
-          {/* Submit Button */}
+          {/*Boton de enviar*/}
           <TouchableOpacity style={styles.submitButton}>
             <Text style={styles.submitButtonText}>Ingresar</Text>
           </TouchableOpacity>
@@ -113,7 +136,8 @@ export default function App() {
     </SafeAreaView>
   );
 }
-
+//Definicio de todos los estilos visuales usando StyleSheet
+//Control de colores, tamaños, posiciones y estilos de los componentes
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,

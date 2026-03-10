@@ -1,3 +1,4 @@
+//Se importa el array de ciudades, es un archivo externo
 export const colombianCities = [
     "Aguachica, Colombia",
     "Apartadó, Colombia",
