@@ -51,7 +51,7 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
       <StatusBar barStyle="light-content" backgroundColor="#020617" />
       <View style={styles.card}>
         <View style={styles.logoContainer}>
-          <View style={styles.iconCircle}> 
+          <View style={styles.iconCircle}>
             <Ionicons name="aperture-outline" size={60} color="#0ea5e9" />
           </View>
           <Text style={styles.logoText}>INTERGEA</Text>
@@ -60,9 +60,9 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
 
         <Text style={styles.accessTitle}>ACCESO</Text>
         <Text style={styles.description}>
-          Plataforma industrial centralizada que se conecta con proveedores certificados en la industria de gráficas
+          Plataforma industrial centralizada que se conecta con proveedores certificados
         </Text>
-        
+
         {/* Campo para el correo */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Correo electrónico:</Text>
@@ -88,8 +88,8 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
         </View>
 
         {/* Botón principal de entrada con indicador de carga */}
-        <TouchableOpacity 
-          style={[styles.loginButton, loading && { opacity: 0.7 }]} 
+        <TouchableOpacity
+          style={[styles.loginButton, loading && { opacity: 0.7 }]}
           onPress={handleLogin}
           disabled={loading}
         >
