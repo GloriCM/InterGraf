@@ -1,4 +1,4 @@
-# InterGraf – Especificación de Módulos del Sistema
+# InterGea – Especificación de Módulos del Sistema
 
 ## Módulo 1: Registro de Empresas y Acceso
 
