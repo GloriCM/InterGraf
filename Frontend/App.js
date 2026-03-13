@@ -1,35 +1,31 @@
-//Se importa react y hook useState para manejar el estado de los componentes
 import React, { useState } from 'react';
-//Se importan componentes basicos de react native
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, SafeAreaView, StatusBar } from 'react-native';
-//Se importan iconos desde expo
+// Importamos las herramientas básicas de la interfaz de usuario
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, Platform } from 'react-native';
+// Iconos para que la app se vea profesional
 import { AntDesign, Ionicons } from '@expo/vector-icons';
-//Se importa el componente Picker, para crear un selector desplegable 
+// El selector de ciudades
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
-//Se importa el array de ciudades, es un archivo externo
-//Se importa el array de ciudades, es un archivo externo
+// Lista de ciudades colombianas externa
 import { colombianCities } from './cities';
-//Se importa el cliente de Supabase pre-configurado
+// Nuestra conexión configurada con la base de datos
 import { supabase } from './supabase';
-// Importar el nuevo componente de Login
+// El componente de la pantalla de login
 import Login from './Login';
 
-//Componente principal de la aplicacion
 export default function App() {
-  // Estado para controlar qué pantalla se muestra (login o registro)
+  // Manejamos en qué pantalla estamos (login, registro o dashboard)
   const [currentScreen, setCurrentScreen] = useState('login');
 
-  //Estado que controla si el checkbox esta marcado
+  // Guardamos si aceptó los términos legales
   const [isChecked, setIsChecked] = useState(false);
-  //Estado que controla la ciudad seleccionada
+  // La ciudad que el usuario elija del menú
   const [selectedCity, setSelectedCity] = useState('');
 
-  // Estados para capturar toda la información del formulario
+  // Aquí guardamos todo lo que el usuario escribe en el formulario
   const [razonSocial, setRazonSocial] = useState('');
-  const [tipoDocumento, setTipoDocumento] = useState('');
   const [numeroDocumento, setNumeroDocumento] = useState('');
   const [direccion, setDireccion] = useState('');
   const [sectorEmpresarial, setSectorEmpresarial] = useState('');
@@ -38,15 +34,16 @@ export default function App() {
   const [descripcion, setDescripcion] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [confirmarContrasena, setConfirmarContrasena] = useState('');
-  const [logoUri, setLogoUri] = useState(null); // Estado para la imagen del logo
+  const [logoUri, setLogoUri] = useState(null); 
   const [loading, setLoading] = useState(false);
+  // Datos de la empresa después de loguearse con éxito
+  const [userData, setUserData] = useState(null); 
 
-  // Estado para capturar qué campos tienen error
+  // Para mostrar alertas rojas si algo falta o está mal
   const [errors, setErrors] = useState({});
 
-  // Función para seleccionar la imagen
+  // Abrir la galería para que el usuario elija su logo
   const pickImage = async () => {
-    // Pedimos permiso para acceder a la galería
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permissionResult.granted === false) {
@@ -55,27 +52,35 @@ export default function App() {
     }
 
     const pickerResult = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true, // Permite recortar
-      aspect: [1, 1], // Que sea cuadrada para un logo
-      quality: 0.5, // Le bajamos la calidad (y por ende peso) a la mitad
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true, 
+      aspect: [1, 1], 
+      quality: 0.5, 
     });
 
     if (!pickerResult.canceled) {
-      setLogoUri(pickerResult.assets[0].uri);
-      setErrors({ ...errors, logo: null }); // Quitamos error de logo
+      const asset = pickerResult.assets[0];
+      // Solo aceptamos fotos, nada de PDFs
+      if (asset.mimeType && !asset.mimeType.startsWith('image/')) {
+        alert("¡Error! Selecciona solo un archivo de imagen (no PDFs ni otros documentos).");
+        return;
+      } else if (asset.uri.toLowerCase().endsWith('.pdf')) {
+        alert("¡Error! No se permiten archivos PDF. Selecciona una imagen.");
+        return;
+      }
+
+      setLogoUri(asset.uri);
+      setErrors({ ...errors, logo: null }); 
     }
   };
 
-  // Función para procesar y enviar los datos a Supabase
+  // El motor que valida los datos y los envía a la nube
   const handleSubmit = async () => {
-    // Reiniciamos los errores en cada intento
     setErrors({});
     let newErrors = {};
 
-    // 1. Campos vacíos obligatorios
+    // Validamos que no deje campos obligatorios vacíos
     if (!razonSocial) newErrors.razonSocial = "Obligatorio";
-    if (!tipoDocumento) newErrors.tipoDocumento = "Obligatorio";
     if (!numeroDocumento) newErrors.numeroDocumento = "Obligatorio";
     if (!direccion) newErrors.direccion = "Obligatorio";
     if (!selectedCity) newErrors.ciudad = "Debes seleccionar una ciudad";
@@ -87,23 +92,19 @@ export default function App() {
     if (!confirmarContrasena) newErrors.confirmarContrasena = "Obligatorio";
     if (!logoUri) newErrors.logo = "Debes subir un logo";
 
-    // 2. Validar NIT solo números
+    // Filtros de formato para NIT, teléfono y correo
     if (numeroDocumento && !/^\d+$/.test(numeroDocumento)) {
       newErrors.numeroDocumento = "Solo números";
     }
-
-    // 3. Validar Teléfono solo números
     if (telefono && !/^\d+$/.test(telefono)) {
       newErrors.telefono = "Solo números";
     }
-
-    // 4. Validar formato de Correo Electrónico
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (correo && !emailRegex.test(correo)) {
       newErrors.correo = "Correo inválido";
     }
 
-    // 5. Validar contraseña (min 6 chars, 2 numeros, 1 especial)
+    // Seguridad básica para la contraseña
     if (contrasena) {
       const minLength = contrasena.length >= 6;
       const digitCount = (contrasena.match(/\d/g) || []).length;
@@ -114,17 +115,14 @@ export default function App() {
       }
     }
 
-    // 6. Validar que las contraseñas coincidan
     if (contrasena && confirmarContrasena && contrasena !== confirmarContrasena) {
       newErrors.confirmarContrasena = "No coincide";
     }
 
-    // 7. Términos y condiciones
     if (!isChecked) {
       newErrors.terminos = "Debes aceptar los términos";
     }
 
-    // Si el objeto de errores tiene alguna propiedad, detener el submit
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
@@ -132,7 +130,7 @@ export default function App() {
 
     setLoading(true);
 
-    // 8. Comprobar que el correo no esté ya registrado en BD
+    // Revisamos si el correo ya existe para no duplicar
     const { data: existingUser, error: searchError } = await supabase
       .from('Usuarios_Registrados')
       .select('correo')
@@ -151,21 +149,48 @@ export default function App() {
       return;
     }
 
-    // 9. Subir la imagen a Supabase Storage
     let publicLogoUrl = null;
 
     try {
-      // 9.1 Verificar tamaño de archivo base64 (2MB máximo aprox)
-      const fileInfo = await FileSystem.getInfoAsync(logoUri);
-      if (fileInfo.size > 2 * 1024 * 1024) { // límite manual de 2MB extra
-        setLoading(false);
-        setErrors({ logo: "La imagen debe pesar menos de 2MB" });
-        return;
+      // Proceso para preparar y subir la imagen ya sea en Web o Celular
+      let base64 = "";
+      let ext = "jpeg"; 
+
+      if (Platform.OS === 'web') {
+        const response = await fetch(logoUri);
+        const blob = await response.blob();
+        if (blob.size > 2 * 1024 * 1024) { 
+          setLoading(false);
+          setErrors({ logo: "La imagen debe pesar menos de 2MB" });
+          return;
+        }
+
+        base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+             resolve(reader.result.split(',')[1]); 
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+
+        if (blob.type === 'image/png') ext = 'png';
+        else if (blob.type === 'image/jpeg') ext = 'jpeg';
+        else ext = 'jpg';
+
+      } else {
+        const fileInfo = await FileSystem.getInfoAsync(logoUri);
+        if (fileInfo.size > 2 * 1024 * 1024) { 
+          setLoading(false);
+          setErrors({ logo: "La imagen debe pesar menos de 2MB" });
+          return;
+        }
+
+        base64 = await FileSystem.readAsStringAsync(logoUri, { encoding: 'base64' });
+        ext = logoUri.substring(logoUri.lastIndexOf(".") + 1) || 'jpg';
       }
 
-      // Convertimos el URI local a Base64 y luego a ArrayBuffer (para Supabase en móvil)
-      const base64 = await FileSystem.readAsStringAsync(logoUri, { encoding: 'base64' });
-      const ext = logoUri.substring(logoUri.lastIndexOf(".") + 1) || 'jpg';
+      // Nombre único para que las imágenes no se sobreescriban
       const fileName = `${razonSocial.replace(/\s+/g, '')}_${Date.now()}.${ext}`;
 
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -178,7 +203,7 @@ export default function App() {
         throw uploadError;
       }
 
-      // Obtener el enlace público del archivo recién subido
+      // Generamos el link público para guardarlo en la tabla
       const { data: publicUrlData } = supabase.storage
         .from('logos')
         .getPublicUrl(fileName);
@@ -192,13 +217,13 @@ export default function App() {
       return;
     }
 
-    // Inserción de la nueva empresa
+    // Insertamos todos los datos finales en la base de datos
     const { data, error } = await supabase
       .from('Usuarios_Registrados')
       .insert([
         {
           razon_social: razonSocial,
-          tipo_documento: tipoDocumento,
+          tipo_documento: 'NIT',
           numero_documento: numeroDocumento,
           direccion: direccion,
           ciudad: selectedCity,
@@ -206,8 +231,8 @@ export default function App() {
           correo: correo,
           telefono: telefono,
           descripcion: descripcion,
-          contrasena: contrasena, // ATENCIÓN: en un sistema real, NUNCA guardes las contraseñas en texto plano. Guárdalas mediante el sistema 'Supabase Auth' o usa un hash bcrypt.
-          logo_url: publicLogoUrl, // Nueva columna en la base de datos
+          contrasena: contrasena, 
+          logo_url: publicLogoUrl, 
         }
       ]);
 
@@ -219,51 +244,77 @@ export default function App() {
     } else {
       console.log("Datos insertados correctamente en Supabase");
       alert("¡Registro Exitoso! La empresa ha sido guardada.");
-      // Limpiar formulario opcionalmente
+      // Limpiamos los campos para dejar el formulario listo otra vez
       setRazonSocial('');
       setNumeroDocumento('');
       setCorreo('');
       setContrasena('');
       setConfirmarContrasena('');
-      setLogoUri(null); // Reseteamos la imagen seleccionada
+      setLogoUri(null); 
       setIsChecked(false);
-      setCurrentScreen('login'); // Volver al login tras registro exitoso
+      setCurrentScreen('login'); 
     }
   };
 
+  // Si el usuario está en la pantalla de Login
   if (currentScreen === 'login') {
     return (
       <Login
         onRegisterPress={() => setCurrentScreen('register')}
         onRecoverPasswordPress={() => alert('Próximamente: Recuperar contraseña')}
+        onLoginSuccess={(data) => {
+          setUserData(data);
+          setCurrentScreen('dashboard');
+        }}
       />
     );
   }
 
+  // Si el usuario ya entró con éxito (Panel de Bienvenida)
+  if (currentScreen === 'dashboard' && userData) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
+        <View style={styles.dashboardContainer}>
+          <Ionicons name="aperture" size={80} color="#0891b2" />
+          <Text style={styles.welcomeText}>¡Bienvenido!</Text>
+          <Text style={styles.companyNameText}>{userData.razon_social}</Text>
+          
+          <View style={styles.infoCard}>
+            <Text style={styles.infoLabel}>NIT: <Text style={styles.infoValue}>{userData.numero_documento}</Text></Text>
+            <Text style={styles.infoLabel}>Ciudad: <Text style={styles.infoValue}>{userData.ciudad}</Text></Text>
+            <Text style={styles.infoLabel}>Sector: <Text style={styles.infoValue}>{userData.sector_empresarial}</Text></Text>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.logoutButton} 
+            onPress={() => {
+              setUserData(null);
+              setCurrentScreen('login');
+            }}
+          >
+            <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Diseño visual de la pantalla de Registro
   return (
-    // Contenedor principal de la aplicacion
     <SafeAreaView style={styles.safeArea}>
-      {/*Configuracion del estado de la barra de estado del telefono*/}
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
-      {/*Permite desplazarse verticalmente si el contenido es mas grande que la pantalla*/}
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        {/*Tarjeta principal que contiene todo el formulario*/}
         <View style={styles.card}>
 
-          {/*Contenedor del Logo*/}
           <View style={styles.logoContainer}>
-            {/*Icono que coincide con el login*/}
             <Ionicons name="aperture" size={40} color="#0891b2" />
-            {/*Nombre de la app*/}
             <Text style={styles.logoText}> INTERGEA</Text>
           </View>
 
-          {/*Titulo del formulario*/}
           <Text style={styles.title}> Formulario de Afiliacion</Text>
-          {/*Subtitulo del formulario*/}
           <Text style={styles.subtitle}> Validacion de la empresa</Text>
 
-          {/*Campo de texto para la razon social*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Razon Social:</Text>
             <TextInput
@@ -274,30 +325,21 @@ export default function App() {
             {errors.razonSocial && <Text style={styles.errorText}>{errors.razonSocial}</Text>}
           </View>
 
-          {/*Campo de texto para el tipo de documento*/}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Tipo Documento:</Text>
-            <TextInput
-              style={[styles.input, errors.tipoDocumento && styles.inputError]}
-              value={tipoDocumento}
-              onChangeText={(text) => { setTipoDocumento(text); setErrors({ ...errors, tipoDocumento: null }); }}
-            />
-            {errors.tipoDocumento && <Text style={styles.errorText}>{errors.tipoDocumento}</Text>}
-          </View>
-
-          {/*Campo de texto para el NIT*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>NIT:</Text>
             <TextInput
               style={[styles.input, errors.numeroDocumento && styles.inputError]}
               value={numeroDocumento}
-              onChangeText={(text) => { setNumeroDocumento(text); setErrors({ ...errors, numeroDocumento: null }); }}
+              onChangeText={(text) => { 
+                const numericValue = text.replace(/[^0-9]/g, '');
+                setNumeroDocumento(numericValue); 
+                setErrors({ ...errors, numeroDocumento: null }); 
+              }}
               keyboardType="numeric"
             />
             {errors.numeroDocumento && <Text style={styles.errorText}>{errors.numeroDocumento}</Text>}
           </View>
 
-          {/*Campo de texto para la direccion*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Direccion:</Text>
             <TextInput
@@ -308,7 +350,6 @@ export default function App() {
             {errors.direccion && <Text style={styles.errorText}>{errors.direccion}</Text>}
           </View>
 
-          {/*Campo de texto para la ciudad*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Ciudad:</Text>
             <View style={[styles.pickerContainer, errors.ciudad && styles.inputError]}>
@@ -326,7 +367,6 @@ export default function App() {
             {errors.ciudad && <Text style={styles.errorText}>{errors.ciudad}</Text>}
           </View>
 
-          {/*Campo de texto para el sector empresarial*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Sector Empresarial:</Text>
             <TextInput
@@ -337,7 +377,6 @@ export default function App() {
             {errors.sectorEmpresarial && <Text style={styles.errorText}>{errors.sectorEmpresarial}</Text>}
           </View>
 
-          {/*Campo de texto para el correo electronico*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Correo Electronico:</Text>
             <TextInput
@@ -350,19 +389,21 @@ export default function App() {
             {errors.correo && <Text style={styles.errorText}>{errors.correo}</Text>}
           </View>
 
-          {/*Campo de texto para el telefono*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Telefono:</Text>
             <TextInput
               style={[styles.input, errors.telefono && styles.inputError]}
               keyboardType="phone-pad"
               value={telefono}
-              onChangeText={(text) => { setTelefono(text); setErrors({ ...errors, telefono: null }); }}
+              onChangeText={(text) => { 
+                const numericValue = text.replace(/[^0-9]/g, '');
+                setTelefono(numericValue); 
+                setErrors({ ...errors, telefono: null }); 
+              }}
             />
             {errors.telefono && <Text style={styles.errorText}>{errors.telefono}</Text>}
           </View>
 
-          {/*Campo de texto para la descripcion*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Descripcion:</Text>
             <TextInput
@@ -373,7 +414,6 @@ export default function App() {
             {errors.descripcion && <Text style={styles.errorText}>{errors.descripcion}</Text>}
           </View>
 
-          {/*Campo de texto para la Contraseña*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Contraseña:</Text>
             <TextInput
@@ -386,7 +426,6 @@ export default function App() {
             {errors.contrasena && <Text style={styles.errorText}>{errors.contrasena}</Text>}
           </View>
 
-          {/*Campo de texto para Confirmar Contraseña*/}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Confirmar Contraseña:</Text>
             <TextInput
@@ -399,7 +438,6 @@ export default function App() {
             {errors.confirmarContrasena && <Text style={styles.errorText}>{errors.confirmarContrasena}</Text>}
           </View>
 
-          {/*Campo de texto para subir el logo*/}
           <Text style={styles.uploadLabel}>Subir Logo de la empresa:</Text>
           <TouchableOpacity
             style={[styles.uploadButton, errors.logo && styles.inputError, logoUri && styles.uploadButtonSuccess]}
@@ -410,7 +448,6 @@ export default function App() {
           {logoUri && <Text style={styles.successText}>¡Logo seleccionado!</Text>}
           {errors.logo && <Text style={[styles.errorText, { marginBottom: 10 }]}>{errors.logo}</Text>}
 
-          {/*Seccion de aceptacion de terminos y condiciones */}
           <View style={styles.termsMaster}>
             <View style={styles.termsContainer}>
               <TouchableOpacity
@@ -424,7 +461,6 @@ export default function App() {
             {errors.terminos && <Text style={[styles.errorText, { marginTop: -20, marginBottom: 25 }]}>{errors.terminos}</Text>}
           </View>
 
-          {/*Boton de enviar*/}
           <TouchableOpacity
             style={[styles.submitButton, loading && { opacity: 0.7 }]}
             onPress={handleSubmit}
@@ -433,7 +469,6 @@ export default function App() {
             <Text style={styles.submitButtonText}>{loading ? 'Registrando...' : 'Registrar Empresa'}</Text>
           </TouchableOpacity>
 
-          {/* Botón para volver al Login */}
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => setCurrentScreen('login')}
@@ -446,8 +481,8 @@ export default function App() {
     </SafeAreaView>
   );
 }
-//Definicio de todos los estilos visuales usando StyleSheet
-//Control de colores, tamaños, posiciones y estilos de los componentes
+
+// Estilos visuales de todos los componentes (colores, bordes, tamaños)
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -607,5 +642,51 @@ const styles = StyleSheet.create({
     color: '#0891b2',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  dashboardContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#020617',
+  },
+  welcomeText: {
+    color: '#94a3b8',
+    fontSize: 18,
+    marginTop: 20,
+  },
+  companyNameText: {
+    color: '#ffffff',
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 30,
+    textAlign: 'center',
+  },
+  infoCard: {
+    backgroundColor: '#0f172a',
+    width: '90%',
+    padding: 25,
+    borderRadius: 20,
+    marginBottom: 40,
+  },
+  infoLabel: {
+    color: '#94a3b8',
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  infoValue: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  logoutButton: {
+    backgroundColor: '#ef4444',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+  },
+  logoutButtonText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

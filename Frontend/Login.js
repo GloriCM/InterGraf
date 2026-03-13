@@ -1,17 +1,57 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView, StatusBar, Image } from 'react-native';
+// Herramientas para armar la pantalla de Login
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView, StatusBar, Image, Alert, ActivityIndicator } from 'react-native';
+// El icono circular del logo
 import { Ionicons } from '@expo/vector-icons';
+// Conexión directa a nuestra base de datos en Supabase
+import { supabase } from './supabase';
 
-export default function Login({ onRegisterPress, onRecoverPasswordPress }) {
+export default function Login({ onRegisterPress, onRecoverPasswordPress, onLoginSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Función para validar las credenciales al presionar 'Ingresar'
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Error", "Por favor ingresa correo y contraseña.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Buscamos la empresa por correo y contraseña exactos
+      const { data, error } = await supabase
+        .from('Usuarios_Registrados')
+        .select('*')
+        .eq('correo', email)
+        .eq('contrasena', password)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        // Si todo está bien, pasamos al dashboard
+        onLoginSuccess(data);
+      } else {
+        // Si no coincide, avisamos al usuario
+        Alert.alert("Error de acceso", "Correo o contraseña incorrectos.");
+      }
+    } catch (err) {
+      console.error("Error en login:", err.message);
+      Alert.alert("Error", "Ocurrió un error al intentar ingresar.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#020617" />
       <View style={styles.card}>
         <View style={styles.logoContainer}>
-          <View style={styles.iconCircle}> {/*AQUI SE PONE EL ICONO DEL LOGO*/}
+          <View style={styles.iconCircle}> 
             <Ionicons name="aperture-outline" size={60} color="#0ea5e9" />
           </View>
           <Text style={styles.logoText}>INTERGEA</Text>
@@ -22,7 +62,8 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress }) {
         <Text style={styles.description}>
           Plataforma industrial centralizada que se conecta con proveedores certificados en la industria de gráficas
         </Text>
-        {/*Ingreso de correo */}
+        
+        {/* Campo para el correo */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Correo electrónico:</Text>
           <TextInput
@@ -33,7 +74,8 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress }) {
             autoCapitalize="none"
           />
         </View>
-        {/*Ingreso de contraseña */}
+
+        {/* Campo para la contraseña */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Contraseña:</Text>
           <TextInput
@@ -44,19 +86,27 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress }) {
             autoCapitalize="none"
           />
         </View>
-        {/*Boton de ingresar */}
-        <TouchableOpacity style={styles.loginButton}>
-          <Text style={styles.loginButtonText}>Ingresar</Text>
+
+        {/* Botón principal de entrada con indicador de carga */}
+        <TouchableOpacity 
+          style={[styles.loginButton, loading && { opacity: 0.7 }]} 
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.loginButtonText}>Ingresar</Text>
+          )}
         </TouchableOpacity>
 
-        {/*Boton de registrar */}
+        {/* Enlaces de ayuda para registro o olvido de clave */}
         <View style={styles.footerLinks}>
           <Text style={styles.footerTextText}>¿No tienes acceso?</Text>
           <TouchableOpacity onPress={onRegisterPress}>
             <Text style={styles.linkText}>Registrar Empresa</Text>
           </TouchableOpacity>
 
-          {/*Boton de recuperar contraseña */}
           <Text style={[styles.footerTextText, { marginTop: 15 }]}>¿Olvidaste tu contraseña?</Text>
           <TouchableOpacity onPress={onRecoverPasswordPress}>
             <Text style={styles.linkText}>Recuperar contraseña</Text>
@@ -67,6 +117,7 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress }) {
   );
 }
 
+// Configuración estética de la pantalla de Login
 const styles = StyleSheet.create({
   container: {
     flex: 1,
