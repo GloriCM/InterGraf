@@ -14,14 +14,19 @@ import { decode } from 'base64-arraybuffer';
 import { colombianCities } from './cities';
 //Se importa el cliente de Supabase pre-configurado
 import { supabase } from './supabase';
+// Importar el nuevo componente de Login
+import Login from './Login';
 
 //Componente principal de la aplicacion
 export default function App() {
+  // Estado para controlar qué pantalla se muestra (login o registro)
+  const [currentScreen, setCurrentScreen] = useState('login');
+
   //Estado que controla si el checkbox esta marcado
   const [isChecked, setIsChecked] = useState(false);
   //Estado que controla la ciudad seleccionada
   const [selectedCity, setSelectedCity] = useState('');
-  
+
   // Estados para capturar toda la información del formulario
   const [razonSocial, setRazonSocial] = useState('');
   const [tipoDocumento, setTipoDocumento] = useState('');
@@ -35,7 +40,7 @@ export default function App() {
   const [confirmarContrasena, setConfirmarContrasena] = useState('');
   const [logoUri, setLogoUri] = useState(null); // Estado para la imagen del logo
   const [loading, setLoading] = useState(false);
-  
+
   // Estado para capturar qué campos tienen error
   const [errors, setErrors] = useState({});
 
@@ -58,7 +63,7 @@ export default function App() {
 
     if (!pickerResult.canceled) {
       setLogoUri(pickerResult.assets[0].uri);
-      setErrors({...errors, logo: null}); // Quitamos error de logo
+      setErrors({ ...errors, logo: null }); // Quitamos error de logo
     }
   };
 
@@ -67,7 +72,7 @@ export default function App() {
     // Reiniciamos los errores en cada intento
     setErrors({});
     let newErrors = {};
-    
+
     // 1. Campos vacíos obligatorios
     if (!razonSocial) newErrors.razonSocial = "Obligatorio";
     if (!tipoDocumento) newErrors.tipoDocumento = "Obligatorio";
@@ -103,7 +108,7 @@ export default function App() {
       const minLength = contrasena.length >= 6;
       const digitCount = (contrasena.match(/\d/g) || []).length;
       const specialCharRegex = /[!@#$%^&*(),.?":{}|<>\-=_+]/;
-      
+
       if (!minLength || digitCount < 2 || !specialCharRegex.test(contrasena)) {
         newErrors.contrasena = "Mín. 6 chars, 2 números, 1 especial";
       }
@@ -118,7 +123,7 @@ export default function App() {
     if (!isChecked) {
       newErrors.terminos = "Debes aceptar los términos";
     }
-    
+
     // Si el objeto de errores tiene alguna propiedad, detener el submit
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -148,7 +153,7 @@ export default function App() {
 
     // 9. Subir la imagen a Supabase Storage
     let publicLogoUrl = null;
-    
+
     try {
       // 9.1 Verificar tamaño de archivo base64 (2MB máximo aprox)
       const fileInfo = await FileSystem.getInfoAsync(logoUri);
@@ -165,7 +170,7 @@ export default function App() {
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('logos')
-        .upload(fileName, decode(base64), { 
+        .upload(fileName, decode(base64), {
           contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`
         });
 
@@ -186,12 +191,12 @@ export default function App() {
       alert("Hubo un error al intentar subir la foto. Intenta con otra imagen.");
       return;
     }
-    
+
     // Inserción de la nueva empresa
     const { data, error } = await supabase
       .from('Usuarios_Registrados')
       .insert([
-        { 
+        {
           razon_social: razonSocial,
           tipo_documento: tipoDocumento,
           numero_documento: numeroDocumento,
@@ -222,84 +227,94 @@ export default function App() {
       setConfirmarContrasena('');
       setLogoUri(null); // Reseteamos la imagen seleccionada
       setIsChecked(false);
+      setCurrentScreen('login'); // Volver al login tras registro exitoso
     }
   };
+
+  if (currentScreen === 'login') {
+    return (
+      <Login
+        onRegisterPress={() => setCurrentScreen('register')}
+        onRecoverPasswordPress={() => alert('Próximamente: Recuperar contraseña')}
+      />
+    );
+  }
 
   return (
     // Contenedor principal de la aplicacion
     <SafeAreaView style={styles.safeArea}>
       {/*Configuracion del estado de la barra de estado del telefono*/}
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
-        {/*Permite desplazarse verticalmente si el contenido es mas grande que la pantalla*/}
-        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-          {/*Tarjeta principal que contiene todo el formulario*/}
-          <View style={styles.card}>
+      {/*Permite desplazarse verticalmente si el contenido es mas grande que la pantalla*/}
+      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        {/*Tarjeta principal que contiene todo el formulario*/}
+        <View style={styles.card}>
 
-            {/*Contenedor del Logo*/}
-            <View style={styles.logoContainer}>
-              {/*Icono temporal*/}
-              <Ionicons name="aperture" size={40} color="#06b6d4" />
-                {/*Nombre de la app*/}
-                <Text style={styles.logoText}> INTERGRAF</Text>
+          {/*Contenedor del Logo*/}
+          <View style={styles.logoContainer}>
+            {/*Icono que coincide con el login*/}
+            <Ionicons name="aperture" size={40} color="#0891b2" />
+            {/*Nombre de la app*/}
+            <Text style={styles.logoText}> INTERGEA</Text>
           </View>
 
-    {/*Titulo del formulario*/}
-    <Text style={styles.title}> Formulario de Afiliacion</Text>
-      {/*Subtitulo del formulario*/}
-      <Text style={styles.subtitle}> Validacion de la empresa</Text>
+          {/*Titulo del formulario*/}
+          <Text style={styles.title}> Formulario de Afiliacion</Text>
+          {/*Subtitulo del formulario*/}
+          <Text style={styles.subtitle}> Validacion de la empresa</Text>
 
-        {/*Campo de texto para la razon social*/}
-        <View style={styles.inputGroup}>
+          {/*Campo de texto para la razon social*/}
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Razon Social:</Text>
-            <TextInput 
-              style={[styles.input, errors.razonSocial && styles.inputError]} 
+            <TextInput
+              style={[styles.input, errors.razonSocial && styles.inputError]}
               value={razonSocial}
-              onChangeText={(text) => { setRazonSocial(text); setErrors({...errors, razonSocial: null}); }} 
+              onChangeText={(text) => { setRazonSocial(text); setErrors({ ...errors, razonSocial: null }); }}
             />
             {errors.razonSocial && <Text style={styles.errorText}>{errors.razonSocial}</Text>}
           </View>
 
-    {/*Campo de texto para el tipo de documento*/}
-    <View style={styles.inputGroup}>
+          {/*Campo de texto para el tipo de documento*/}
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Tipo Documento:</Text>
-            <TextInput 
-              style={[styles.input, errors.tipoDocumento && styles.inputError]} 
+            <TextInput
+              style={[styles.input, errors.tipoDocumento && styles.inputError]}
               value={tipoDocumento}
-              onChangeText={(text) => { setTipoDocumento(text); setErrors({...errors, tipoDocumento: null}); }} 
+              onChangeText={(text) => { setTipoDocumento(text); setErrors({ ...errors, tipoDocumento: null }); }}
             />
             {errors.tipoDocumento && <Text style={styles.errorText}>{errors.tipoDocumento}</Text>}
           </View>
 
-    {/*Campo de texto para el NIT*/}
-    <View style={styles.inputGroup}>
+          {/*Campo de texto para el NIT*/}
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>NIT:</Text>
-            <TextInput 
-              style={[styles.input, errors.numeroDocumento && styles.inputError]} 
+            <TextInput
+              style={[styles.input, errors.numeroDocumento && styles.inputError]}
               value={numeroDocumento}
-              onChangeText={(text) => { setNumeroDocumento(text); setErrors({...errors, numeroDocumento: null}); }} 
+              onChangeText={(text) => { setNumeroDocumento(text); setErrors({ ...errors, numeroDocumento: null }); }}
               keyboardType="numeric"
             />
             {errors.numeroDocumento && <Text style={styles.errorText}>{errors.numeroDocumento}</Text>}
           </View>
 
-    {/*Campo de texto para la direccion*/}
-    <View style={styles.inputGroup}>
+          {/*Campo de texto para la direccion*/}
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Direccion:</Text>
-            <TextInput 
-              style={[styles.input, errors.direccion && styles.inputError]} 
+            <TextInput
+              style={[styles.input, errors.direccion && styles.inputError]}
               value={direccion}
-              onChangeText={(text) => { setDireccion(text); setErrors({...errors, direccion: null}); }} 
+              onChangeText={(text) => { setDireccion(text); setErrors({ ...errors, direccion: null }); }}
             />
             {errors.direccion && <Text style={styles.errorText}>{errors.direccion}</Text>}
           </View>
 
-    {/*Campo de texto para la ciudad*/}
-    <View style={styles.inputGroup}>
+          {/*Campo de texto para la ciudad*/}
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Ciudad:</Text>
             <View style={[styles.pickerContainer, errors.ciudad && styles.inputError]}>
               <Picker
-                selectedValue={selectedCity} 
-                onValueChange={(itemValue) => { setSelectedCity(itemValue); setErrors({...errors, ciudad: null}); }} 
+                selectedValue={selectedCity}
+                onValueChange={(itemValue) => { setSelectedCity(itemValue); setErrors({ ...errors, ciudad: null }); }}
                 style={styles.picker}
               >
                 <Picker.Item label="Seleccione una ciudad" value="" />
@@ -311,113 +326,120 @@ export default function App() {
             {errors.ciudad && <Text style={styles.errorText}>{errors.ciudad}</Text>}
           </View>
 
-    {/*Campo de texto para el sector empresarial*/}
-    <View style={styles.inputGroup}>
+          {/*Campo de texto para el sector empresarial*/}
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Sector Empresarial:</Text>
-            <TextInput 
-              style={[styles.input, errors.sectorEmpresarial && styles.inputError]} 
+            <TextInput
+              style={[styles.input, errors.sectorEmpresarial && styles.inputError]}
               value={sectorEmpresarial}
-              onChangeText={(text) => { setSectorEmpresarial(text); setErrors({...errors, sectorEmpresarial: null}); }} 
+              onChangeText={(text) => { setSectorEmpresarial(text); setErrors({ ...errors, sectorEmpresarial: null }); }}
             />
             {errors.sectorEmpresarial && <Text style={styles.errorText}>{errors.sectorEmpresarial}</Text>}
           </View>
 
-    {/*Campo de texto para el correo electronico*/}
-    <View style={styles.inputGroup}>
+          {/*Campo de texto para el correo electronico*/}
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Correo Electronico:</Text>
-            <TextInput 
-              style={[styles.input, errors.correo && styles.inputError]} 
-              keyboardType="email-address" 
+            <TextInput
+              style={[styles.input, errors.correo && styles.inputError]}
+              keyboardType="email-address"
               value={correo}
-              onChangeText={(text) => { setCorreo(text); setErrors({...errors, correo: null}); }}
+              onChangeText={(text) => { setCorreo(text); setErrors({ ...errors, correo: null }); }}
               autoCapitalize="none"
             />
             {errors.correo && <Text style={styles.errorText}>{errors.correo}</Text>}
           </View>
 
-    {/*Campo de texto para el telefono*/}
-    <View style={styles.inputGroup}>
+          {/*Campo de texto para el telefono*/}
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Telefono:</Text>
-            <TextInput 
-              style={[styles.input, errors.telefono && styles.inputError]} 
-              keyboardType="phone-pad" 
+            <TextInput
+              style={[styles.input, errors.telefono && styles.inputError]}
+              keyboardType="phone-pad"
               value={telefono}
-              onChangeText={(text) => { setTelefono(text); setErrors({...errors, telefono: null}); }}
+              onChangeText={(text) => { setTelefono(text); setErrors({ ...errors, telefono: null }); }}
             />
             {errors.telefono && <Text style={styles.errorText}>{errors.telefono}</Text>}
           </View>
 
-    {/*Campo de texto para la descripcion*/}
-    <View style={styles.inputGroup}>
+          {/*Campo de texto para la descripcion*/}
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Descripcion:</Text>
-            <TextInput 
-              style={[styles.input, errors.descripcion && styles.inputError]} 
+            <TextInput
+              style={[styles.input, errors.descripcion && styles.inputError]}
               value={descripcion}
-              onChangeText={(text) => { setDescripcion(text); setErrors({...errors, descripcion: null}); }}
+              onChangeText={(text) => { setDescripcion(text); setErrors({ ...errors, descripcion: null }); }}
             />
             {errors.descripcion && <Text style={styles.errorText}>{errors.descripcion}</Text>}
           </View>
 
-    {/*Campo de texto para la Contraseña*/}
-    <View style={styles.inputGroup}>
+          {/*Campo de texto para la Contraseña*/}
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Contraseña:</Text>
-            <TextInput 
-              style={[styles.input, errors.contrasena && styles.inputError]} 
+            <TextInput
+              style={[styles.input, errors.contrasena && styles.inputError]}
               value={contrasena}
-              onChangeText={(text) => { setContrasena(text); setErrors({...errors, contrasena: null}); }}
+              onChangeText={(text) => { setContrasena(text); setErrors({ ...errors, contrasena: null }); }}
               secureTextEntry={true}
               autoCapitalize="none"
             />
             {errors.contrasena && <Text style={styles.errorText}>{errors.contrasena}</Text>}
           </View>
 
-    {/*Campo de texto para Confirmar Contraseña*/}
-    <View style={styles.inputGroup}>
+          {/*Campo de texto para Confirmar Contraseña*/}
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Confirmar Contraseña:</Text>
-            <TextInput 
-              style={[styles.input, errors.confirmarContrasena && styles.inputError]} 
+            <TextInput
+              style={[styles.input, errors.confirmarContrasena && styles.inputError]}
               value={confirmarContrasena}
-              onChangeText={(text) => { setConfirmarContrasena(text); setErrors({...errors, confirmarContrasena: null}); }}
+              onChangeText={(text) => { setConfirmarContrasena(text); setErrors({ ...errors, confirmarContrasena: null }); }}
               secureTextEntry={true}
               autoCapitalize="none"
             />
             {errors.confirmarContrasena && <Text style={styles.errorText}>{errors.confirmarContrasena}</Text>}
           </View>
 
-    {/*Campo de texto para subir el logo*/}
-    <Text style={styles.uploadLabel}>Subir Logo de la empresa:</Text>
-      <TouchableOpacity 
-        style={[styles.uploadButton, errors.logo && styles.inputError, logoUri && styles.uploadButtonSuccess]} 
-        onPress={pickImage}
-      >
-        <AntDesign name="plus" size={24} color={logoUri ? "#ffffff" : "#475569"} />
-      </TouchableOpacity>
-      {logoUri && <Text style={styles.successText}>¡Logo seleccionado!</Text>}
-      {errors.logo && <Text style={[styles.errorText, {marginBottom: 10}]}>{errors.logo}</Text>}
+          {/*Campo de texto para subir el logo*/}
+          <Text style={styles.uploadLabel}>Subir Logo de la empresa:</Text>
+          <TouchableOpacity
+            style={[styles.uploadButton, errors.logo && styles.inputError, logoUri && styles.uploadButtonSuccess]}
+            onPress={pickImage}
+          >
+            <AntDesign name="plus" size={24} color={logoUri ? "#ffffff" : "#475569"} />
+          </TouchableOpacity>
+          {logoUri && <Text style={styles.successText}>¡Logo seleccionado!</Text>}
+          {errors.logo && <Text style={[styles.errorText, { marginBottom: 10 }]}>{errors.logo}</Text>}
 
-  {/*Seccion de aceptacion de terminos y condiciones */}
-  <View style={styles.termsMaster}>
-    <View style={styles.termsContainer}>
-      <TouchableOpacity
-        style={[styles.checkbox, isChecked && styles.checkboxActive]}
-        onPress={() => { setIsChecked(!isChecked); setErrors({...errors, terminos: null}); }}
-      >
-        {isChecked && <AntDesign name="check" size={10} color="#fff" />}
-      </TouchableOpacity>
+          {/*Seccion de aceptacion de terminos y condiciones */}
+          <View style={styles.termsMaster}>
+            <View style={styles.termsContainer}>
+              <TouchableOpacity
+                style={[styles.checkbox, isChecked && styles.checkboxActive]}
+                onPress={() => { setIsChecked(!isChecked); setErrors({ ...errors, terminos: null }); }}
+              >
+                {isChecked && <AntDesign name="check" size={10} color="#fff" />}
+              </TouchableOpacity>
+              <Text style={styles.termsText}>Acepto términos y condiciones</Text>
+            </View>
+            {errors.terminos && <Text style={[styles.errorText, { marginTop: -20, marginBottom: 25 }]}>{errors.terminos}</Text>}
+          </View>
 
-      <Text style={styles.termsText}>Acepto terminos y condiciones</Text>
-    </View>
-    {errors.terminos && <Text style={[styles.errorText, {marginTop: -20, marginBottom: 25}]}>{errors.terminos}</Text>}
-  </View>
+          {/*Boton de enviar*/}
+          <TouchableOpacity
+            style={[styles.submitButton, loading && { opacity: 0.7 }]}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            <Text style={styles.submitButtonText}>{loading ? 'Registrando...' : 'Registrar Empresa'}</Text>
+          </TouchableOpacity>
 
-  {/*Boton de enviar*/}
-  <TouchableOpacity 
-    style={[styles.submitButton, loading && {opacity: 0.7}]} 
-    onPress={handleSubmit}
-    disabled={loading}
-  >
-    <Text style={styles.submitButtonText}>{loading ? 'Enviando...' : 'Ingresar'}</Text>
-  </TouchableOpacity>
+          {/* Botón para volver al Login */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => setCurrentScreen('login')}
+          >
+            <Text style={styles.backButtonText}>Volver al Login</Text>
+          </TouchableOpacity>
 
         </View>
       </ScrollView>
@@ -429,7 +451,7 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#020617',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -439,7 +461,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '85%',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     borderRadius: 25,
     padding: 25,
     alignItems: 'center',
@@ -449,24 +471,31 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   logoText: {
-    color: '#3b82f6',
+    color: '#94a3b8',
     fontSize: 10,
     fontWeight: 'bold',
     marginTop: 2,
     letterSpacing: 1,
   },
+  logoUnderline: {
+    width: 60,
+    height: 1,
+    backgroundColor: '#0891b2',
+    marginTop: 2,
+  },
   title: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 5,
+    marginBottom: 10,
     textAlign: 'center',
   },
   subtitle: {
     color: '#94a3b8',
-    fontSize: 12,
-    marginBottom: 20,
+    fontSize: 13,
+    marginBottom: 25,
     textAlign: 'center',
+    lineHeight: 18,
   },
   inputGroup: {
     width: '100%',
@@ -480,13 +509,11 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: '#cbd5e1',
-    borderRadius: 20,
-    height: 35,
-    paddingHorizontal: 15,
-    fontSize: 14,
+    borderRadius: 25,
+    height: 40,
+    paddingHorizontal: 20,
+    fontSize: 16,
     color: '#0f172a',
-    borderWidth: 1,
-    borderColor: 'transparent',
   },
   inputError: {
     borderColor: '#ef4444',
@@ -505,13 +532,13 @@ const styles = StyleSheet.create({
   },
   pickerContainer: {
     backgroundColor: '#cbd5e1',
-    borderRadius: 20,
-    height: 35,
+    borderRadius: 25,
+    height: 40,
     justifyContent: 'center',
     overflow: 'hidden',
   },
   picker: {
-    height: 35,
+    height: 40,
     color: '#0f172a',
     backgroundColor: 'transparent',
     borderWidth: 0,
@@ -552,22 +579,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkboxActive: {
-    backgroundColor: '#06b6d4',
+    backgroundColor: '#0891b2',
   },
   termsText: {
     color: '#cbd5e1',
     fontSize: 10,
   },
   submitButton: {
-    backgroundColor: '#06b6d4',
+    backgroundColor: '#0891b2',
     paddingVertical: 10,
     paddingHorizontal: 40,
     borderRadius: 20,
-    width: '60%',
+    width: '80%',
     alignItems: 'center',
+    marginBottom: 15,
   },
   submitButtonText: {
     color: '#ffffff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  backButton: {
+    marginTop: 10,
+    paddingVertical: 10,
+  },
+  backButtonText: {
+    color: '#0891b2',
     fontSize: 14,
     fontWeight: 'bold',
   },
