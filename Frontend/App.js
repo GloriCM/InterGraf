@@ -14,6 +14,10 @@ import { colombianCities } from './cities';
 import { supabase } from './supabase';
 // El componente de la pantalla de login
 import Login from './Login';
+// Componente de Crear Producto
+import CrearProducto from './CrearProducto';
+// Componente de Inventario
+import Inventario from './Inventario';
 
 export default function App() {
   // Manejamos en qué pantalla estamos (login, registro o dashboard)
@@ -287,7 +291,21 @@ export default function App() {
           </View>
 
           <TouchableOpacity 
-            style={styles.logoutButton} 
+            style={[styles.logoutButton, { backgroundColor: '#10b981', marginBottom: 15 }]} 
+            onPress={() => setCurrentScreen('inventario')}
+          >
+            <Text style={styles.logoutButtonText}>Gestionar Inventario</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.logoutButton, { backgroundColor: '#0ea5e9', marginBottom: 15 }]} 
+            onPress={() => setCurrentScreen('crear_producto')}
+          >
+            <Text style={styles.logoutButtonText}>Publicar Nuevo Producto</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.logoutButton, { backgroundColor: '#ef4444' }]} 
             onPress={() => {
               setUserData(null);
               setCurrentScreen('login');
@@ -300,6 +318,15 @@ export default function App() {
     );
   }
 
+  // Pantalla de Crear Producto
+  if (currentScreen === 'crear_producto') {
+    return <CrearProducto onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
+  }
+
+  // Pantalla de Inventario
+  if (currentScreen === 'inventario') {
+    return <Inventario onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
+  }
   // Diseño visual de la pantalla de Registro
   return (
     <SafeAreaView style={styles.safeArea}>
