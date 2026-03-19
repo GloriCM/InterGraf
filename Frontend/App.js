@@ -96,26 +96,28 @@ export default function App() {
     if (!confirmarContrasena) newErrors.confirmarContrasena = "Obligatorio";
     if (!logoUri) newErrors.logo = "Debes subir un logo";
 
-    // Filtros de formato para NIT, teléfono y correo
-    if (numeroDocumento && !/^\d+$/.test(numeroDocumento)) {
-      newErrors.numeroDocumento = "Solo números";
+    // 2. Validar NIT alfanumérico
+    if (numeroDocumento && !/^[a-zA-Z0-9]+$/.test(numeroDocumento)) {
+      newErrors.numeroDocumento = "Solo alfanuméricos";
     }
-    if (telefono && !/^\d+$/.test(telefono)) {
-      newErrors.telefono = "Solo números";
+
+    // 3. Validar Teléfono entre 7 y 15 caracteres
+    if (telefono && (!/^\d+$/.test(telefono) || telefono.length < 7 || telefono.length > 15)) {
+      newErrors.telefono = "Entre 7 y 15 números";
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (correo && !emailRegex.test(correo)) {
       newErrors.correo = "Correo inválido";
     }
 
-    // Seguridad básica para la contraseña
+    // 5. Validar contraseña (min 7, max 15 chars, 1 numero, 1 especial)
     if (contrasena) {
-      const minLength = contrasena.length >= 6;
-      const digitCount = (contrasena.match(/\d/g) || []).length;
+      const isLengthValid = contrasena.length >= 7 && contrasena.length <= 15;
+      const hasNumber = /\d/.test(contrasena);
       const specialCharRegex = /[!@#$%^&*(),.?":{}|<>\-=_+]/;
 
-      if (!minLength || digitCount < 2 || !specialCharRegex.test(contrasena)) {
-        newErrors.contrasena = "Mín. 6 chars, 2 números, 1 especial";
+      if (!isLengthValid || !hasNumber || !specialCharRegex.test(contrasena)) {
+        newErrors.contrasena = "7-15 chars, 1 número, 1 símbolo";
       }
     }
 
@@ -134,22 +136,26 @@ export default function App() {
 
     setLoading(true);
 
-    // Revisamos si el correo ya existe para no duplicar
-    const { data: existingUser, error: searchError } = await supabase
+    // 8. Comprobar que el correo o el NIT no estén ya registrados en BD
+    const { data: existingUsers, error: searchError } = await supabase
       .from('Usuarios_Registrados')
-      .select('correo')
-      .eq('correo', correo)
-      .maybeSingle();
+      .select('correo, numero_documento')
+      .or(`correo.eq.${correo},numero_documento.eq.${numeroDocumento}`);
 
     if (searchError) {
       setLoading(false);
-      alert("Ocurrió un error al verificar tu correo en el servidor.");
+      alert("Ocurrió un error al verificar tus datos en el servidor.");
       return;
     }
 
-    if (existingUser) {
+    if (existingUsers && existingUsers.length > 0) {
       setLoading(false);
-      setErrors({ correo: "Este correo ya está registrado" });
+      let errorMsg = {};
+      const tieneCorreo = existingUsers.some(user => user.correo === correo);
+      const tieneNit = existingUsers.some(user => user.numero_documento === numeroDocumento);
+      if (tieneCorreo) errorMsg.correo = "Este correo ya está registrado";
+      if (tieneNit) errorMsg.numeroDocumento = "Este NIT/RUT ya está registrado";
+      setErrors(errorMsg);
       return;
     }
 
@@ -235,8 +241,9 @@ export default function App() {
           correo: correo,
           telefono: telefono,
           descripcion: descripcion,
-          contrasena: contrasena, 
-          logo_url: publicLogoUrl, 
+          contrasena: contrasena, // ATENCIÓN: en un sistema real, NUNCA guardes las contraseñas en texto plano. Guárdalas mediante el sistema 'Supabase Auth' o usa un hash bcrypt.
+          logo_url: publicLogoUrl, // Nueva columna en la base de datos
+          estado: 'Pendiente de verificación', // Nuevo campo de estado inicial
         }
       ]);
 
@@ -347,38 +354,41 @@ export default function App() {
             <TextInput
               style={[styles.input, errors.razonSocial && styles.inputError]}
               value={razonSocial}
-              onChangeText={(text) => { setRazonSocial(text); setErrors({ ...errors, razonSocial: null }); }}
+              maxLength={25}
+              onChangeText={(text) => {
+                // Solo caracteres alfanuméricos y espacios
+                const filteredText = text.replace(/[^a-zA-Z0-9\sáéíóúÁÉÍÓÚñÑ]/g, '');
+                setRazonSocial(filteredText);
+                setErrors({ ...errors, razonSocial: null });
+              }}
             />
             {errors.razonSocial && <Text style={styles.errorText}>{errors.razonSocial}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>NIT:</Text>
+            <Text style={styles.label}>NIT / RUT:</Text>
             <TextInput
               style={[styles.input, errors.numeroDocumento && styles.inputError]}
               value={numeroDocumento}
-              onChangeText={(text) => { 
-                const numericValue = text.replace(/[^0-9]/g, '');
-                setNumeroDocumento(numericValue); 
-                setErrors({ ...errors, numeroDocumento: null }); 
-              }}
-              keyboardType="numeric"
+              onChangeText={(text) => { setNumeroDocumento(text); setErrors({ ...errors, numeroDocumento: null }); }}
+              autoCapitalize="characters"
             />
             {errors.numeroDocumento && <Text style={styles.errorText}>{errors.numeroDocumento}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Direccion:</Text>
+            <Text style={styles.label}>Direccion Legal:</Text>
             <TextInput
               style={[styles.input, errors.direccion && styles.inputError]}
               value={direccion}
+              maxLength={35}
               onChangeText={(text) => { setDireccion(text); setErrors({ ...errors, direccion: null }); }}
             />
             {errors.direccion && <Text style={styles.errorText}>{errors.direccion}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Ciudad:</Text>
+            <Text style={styles.label}>Ciudad (Colombia):</Text>
             <View style={[styles.pickerContainer, errors.ciudad && styles.inputError]}>
               <Picker
                 selectedValue={selectedCity}
@@ -396,11 +406,23 @@ export default function App() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Sector Empresarial:</Text>
-            <TextInput
-              style={[styles.input, errors.sectorEmpresarial && styles.inputError]}
-              value={sectorEmpresarial}
-              onChangeText={(text) => { setSectorEmpresarial(text); setErrors({ ...errors, sectorEmpresarial: null }); }}
-            />
+            <View style={[styles.pickerContainer, errors.sectorEmpresarial && styles.inputError]}>
+              <Picker
+                selectedValue={sectorEmpresarial}
+                onValueChange={(itemValue) => { setSectorEmpresarial(itemValue); setErrors({ ...errors, sectorEmpresarial: null }); }}
+                style={styles.picker}
+              >
+                <Picker.Item label="Seleccione un sector" value="" />
+                <Picker.Item label="Tecnología" value="Tecnología" />
+                <Picker.Item label="Salud" value="Salud" />
+                <Picker.Item label="Educación" value="Educación" />
+                <Picker.Item label="Comercio" value="Comercio" />
+                <Picker.Item label="Servicios" value="Servicios" />
+                <Picker.Item label="Manufactura" value="Manufactura" />
+                <Picker.Item label="Agropecuario" value="Agropecuario" />
+                <Picker.Item label="Otro" value="Otro" />
+              </Picker>
+            </View>
             {errors.sectorEmpresarial && <Text style={styles.errorText}>{errors.sectorEmpresarial}</Text>}
           </View>
 
@@ -417,10 +439,11 @@ export default function App() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Telefono:</Text>
+            <Text style={styles.label}>Telefono de contacto:</Text>
             <TextInput
               style={[styles.input, errors.telefono && styles.inputError]}
               keyboardType="phone-pad"
+              maxLength={15}
               value={telefono}
               onChangeText={(text) => { 
                 const numericValue = text.replace(/[^0-9]/g, '');
@@ -442,10 +465,11 @@ export default function App() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Contraseña:</Text>
+            <Text style={styles.label}>Crear Contraseña:</Text>
             <TextInput
               style={[styles.input, errors.contrasena && styles.inputError]}
               value={contrasena}
+              maxLength={15}
               onChangeText={(text) => { setContrasena(text); setErrors({ ...errors, contrasena: null }); }}
               secureTextEntry={true}
               autoCapitalize="none"
