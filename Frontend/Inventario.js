@@ -121,26 +121,34 @@ export default function Inventario({ onBack, onNavigate }) {
       {/* HEADER DE NAVEGACIÓN */}
       <View style={styles.header}>
         <View style={styles.headerIcons}>
+          {/* Logo Pequeño */}
+          <View style={{ alignItems: 'center', marginRight: 15 }}>
+            <Ionicons name="aperture" size={20} color="#0ea5e9" />
+            <Text style={{ fontSize: 6, color: '#0ea5e9', fontWeight: 'bold' }}>INTERGEA</Text>
+          </View>
+
           <TouchableOpacity onPress={() => onNavigate ? onNavigate('dashboard') : onBack()}>
-            <Ionicons name="home-outline" size={24} color="#94a3b8" style={{ marginHorizontal: 12 }} />
+            <Ionicons name="home" size={22} color="#f8fafc" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
-          <TouchableOpacity>
-            <Ionicons name="help-outline" size={24} color="#94a3b8" style={{ marginHorizontal: 12 }} />
-          </TouchableOpacity>
+          
           <TouchableOpacity onPress={() => onNavigate && onNavigate('crear_producto')}>
-            <Ionicons name="layers-outline" size={24} color="#94a3b8" style={{ marginHorizontal: 12 }} />
+            <Ionicons name="add-outline" size={26} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
+          
           <TouchableOpacity onPress={() => setVerHistorial(false)}>
-            <Ionicons name={!verHistorial ? "cube" : "cube-outline"} size={24} color={!verHistorial ? "#0ea5e9" : "#94a3b8"} style={{ marginHorizontal: 12 }} />
+            <Ionicons name={!verHistorial ? "layers" : "layers-outline"} size={24} color={!verHistorial ? "#0ea5e9" : "#64748b"} style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
+          
           <TouchableOpacity onPress={() => setVerHistorial(true)}>
-            <Ionicons name={verHistorial ? "clipboard" : "clipboard-outline"} size={24} color={verHistorial ? "#0ea5e9" : "#94a3b8"} style={{ marginHorizontal: 12 }} />
+            <Ionicons name={verHistorial ? "cube" : "cube-outline"} size={24} color={verHistorial ? "#0ea5e9" : "#64748b"} style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
+
           <TouchableOpacity>
-            <Ionicons name="star-outline" size={24} color="#94a3b8" style={{ marginHorizontal: 12 }} />
+            <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
-          <TouchableOpacity>
-            <Ionicons name="chatbubble-ellipses-outline" size={24} color="#94a3b8" style={{ marginHorizontal: 12 }} />
+
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('login')}>
+            <Ionicons name="log-out-outline" size={26} color="#f8fafc" style={{ marginLeft: 8 }} />
           </TouchableOpacity>
         </View>
       </View>

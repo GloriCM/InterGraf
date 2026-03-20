@@ -31,16 +31,7 @@ export default function CrearProducto({ onBack, onNavigate }) {
   // Imágenes
   const [imagenes, setImagenes] = useState([]);
 
-  // Lista de categorías de ejemplo
-  const categoriasDisponibles = [
-    'Seleccionar Categoría...',
-    'Impresión Digital',
-    'Impresión Offset',
-    'Gran Formato',
-    'Material Promocional',
-    'Empaques / Packaging',
-    'Otros'
-  ];
+
 
   // --- Funciones ---
 
@@ -88,9 +79,9 @@ export default function CrearProducto({ onBack, onNavigate }) {
       return mostrarError('La descripción técnica es obligatoria.');
     }
 
-    // 3. Categoría lista obligatoria
-    if (!categoria || categoria === 'Seleccionar Categoría...') {
-      return mostrarError('Debes seleccionar una categoría.');
+    // 3. Categoría obligatoria
+    if (!categoria || categoria.trim() === '') {
+      return mostrarError('La categoría es obligatoria.');
     }
 
     // 4. Precio unitario: decimal > 0
@@ -151,26 +142,36 @@ export default function CrearProducto({ onBack, onNavigate }) {
       {/* HEADER DE NAVEGACIÓN */}
       <View style={styles.header}>
         <View style={styles.headerIcons}>
+          {/* Logo Pequeño */}
+          <View style={{ alignItems: 'center', marginRight: 15 }}>
+            <Ionicons name="aperture" size={20} color="#0ea5e9" />
+            <Text style={{ fontSize: 6, color: '#0ea5e9', fontWeight: 'bold' }}>INTERGEA</Text>
+          </View>
+
           <TouchableOpacity onPress={() => onNavigate ? onNavigate('dashboard') : onBack()}>
-            <Ionicons name="home-outline" size={24} color="#94a3b8" style={{ marginHorizontal: 12 }} />
+            <Ionicons name="home" size={22} color="#f8fafc" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
-          <TouchableOpacity>
-            <Ionicons name="help-outline" size={24} color="#94a3b8" style={{ marginHorizontal: 12 }} />
-          </TouchableOpacity>
+          
           <TouchableOpacity onPress={() => onNavigate && onNavigate('crear_producto')}>
-            <Ionicons name="layers" size={24} color="#0ea5e9" style={{ marginHorizontal: 12 }} />
+            <View style={{ width: 24, height: 24, borderWidth: 1.5, borderColor: '#0ea5e9', borderRadius: 6, justifyContent: 'center', alignItems: 'center', marginHorizontal: 8, backgroundColor: 'rgba(14, 165, 233, 0.1)' }}>
+              <Ionicons name="add" size={18} color="#0ea5e9" />
+            </View>
           </TouchableOpacity>
+          
           <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
-            <Ionicons name="cube-outline" size={24} color="#94a3b8" style={{ marginHorizontal: 12 }} />
+            <Ionicons name="layers" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
-          <TouchableOpacity>
-            <Ionicons name="clipboard-outline" size={24} color="#94a3b8" style={{ marginHorizontal: 12 }} />
+          
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
+            <Ionicons name="cube-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
+
           <TouchableOpacity>
-            <Ionicons name="star-outline" size={24} color="#94a3b8" style={{ marginHorizontal: 12 }} />
+            <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
-          <TouchableOpacity>
-            <Ionicons name="chatbubble-ellipses-outline" size={24} color="#94a3b8" style={{ marginHorizontal: 12 }} />
+
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('login')}>
+            <Ionicons name="log-out-outline" size={26} color="#f8fafc" style={{ marginLeft: 8 }} />
           </TouchableOpacity>
         </View>
       </View>
@@ -266,18 +267,13 @@ export default function CrearProducto({ onBack, onNavigate }) {
           {/* Categoría */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Categoría:</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={categoria}
-                onValueChange={(itemValue) => setCategoria(itemValue)}
-                style={styles.picker}
-                dropdownIconColor="#0f172a"
-              >
-                {categoriasDisponibles.map((cat, index) => (
-                  <Picker.Item label={cat} value={cat} key={index} color={Platform.OS === 'ios' ? '#fff' : '#0f172a'} />
-                ))}
-              </Picker>
-            </View>
+            <TextInput
+              style={styles.input}
+              value={categoria}
+              onChangeText={setCategoria}
+              placeholder="Ej: Impresión Digital, Offset..."
+              placeholderTextColor="#94a3b8"
+            />
           </View>
 
           {/* Descripción Técnica */}

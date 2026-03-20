@@ -105,7 +105,7 @@ export default function App() {
 
           <TouchableOpacity 
             style={styles.roleCard} 
-            // onPress={() => setCurrentScreen('vendedor')} // Descomenta cuando tengas la pantalla
+            onPress={() => setCurrentScreen('inventario')}
           >
             <View style={[styles.roleIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
               <Ionicons name="trending-up-outline" size={24} color="#10b981" />
