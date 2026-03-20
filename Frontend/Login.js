@@ -16,6 +16,8 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
   const [codigoGenerado, setCodigoGenerado] = useState('');
   const [codigoIngresado, setCodigoIngresado] = useState('');
   const [userData, setUserData] = useState(null);
+
+
   // Función para validar las credenciales al presionar 'Ingresar'
   const handleLogin = async () => {
     if (!email || !password) {
@@ -106,6 +108,8 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
     // Si queremos reenviar, podríamos volver al selector o reenviar al último
     setStep(2); // Para que elija el método de nuevo
   };
+
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#020617" />
