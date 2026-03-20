@@ -6,6 +6,9 @@ import Login from './Login';
 import CrearProducto from './CrearProducto';
 import Inventario from './Inventario';
 import Registro from './Registro';
+import RecuperarPassword from './RecuperarPassword';
+import RestablecerPassword from './RestablecerPassword';
+import { useEffect } from 'react';
 
 export default function App() {
   // Manejamos en qué pantalla estamos (login, registro o dashboard)
@@ -14,15 +17,61 @@ export default function App() {
   // Datos de la empresa después de loguearse con éxito
   const [userData, setUserData] = useState(null); 
 
+  /**
+   * Efecto para escuchar eventos de autenticación globales de Supabase.
+   * Detecta cuando el usuario llega desde un correo de recuperación de contraseña.
+   */
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Evento Auth Detectado:", event);
+      
+      // Si el evento es PASSWORD_RECOVERY, mostramos la pantalla de nueva contraseña
+      if (event === 'PASSWORD_RECOVERY') {
+        setCurrentScreen('reset_password');
+      }
+    });
+
+    // Limpieza del listener al desmontar el componente
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   // Si el usuario está en la pantalla de Login
   if (currentScreen === 'login') {
     return (
       <Login
         onRegisterPress={() => setCurrentScreen('register')}
-        onRecoverPasswordPress={() => alert('Próximamente: Recuperar contraseña')}
+        onRecoverPasswordPress={() => setCurrentScreen('recover_password')}
         onLoginSuccess={(data) => {
           setUserData(data);
           setCurrentScreen('dashboard');
+        }}
+      />
+    );
+  }
+
+  // Pantalla de Recuperar Contraseña (Solicitud)
+  if (currentScreen === 'recover_password') {
+    return (
+      <RecuperarPassword 
+        onBack={() => setCurrentScreen('login')} 
+      />
+    );
+  }
+
+  // Pantalla de Restablecer Contraseña (Nueva clave)
+  if (currentScreen === 'reset_password') {
+    return (
+      <RestablecerPassword 
+        onBack={() => setCurrentScreen('login')}
+        onResetSuccess={() => {
+          setCurrentScreen('login');
+          if (Platform.OS === 'web') {
+            window.alert("¡Contraseña actualizada! Ya puedes iniciar sesión con tu nueva clave.");
+          } else {
+            alert("¡Contraseña actualizada! Ya puedes iniciar sesión con tu nueva clave.");
+          }
         }}
       />
     );
