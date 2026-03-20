@@ -25,27 +25,29 @@ export default function Registro({ onBack, onRegistrationSuccess }) {
   const [errors, setErrors] = useState({});
 
   const pickImage = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permissionResult.granted === false) {
-      alert("¡Necesitamos permiso para acceder a tus fotos!");
-      return;
-    }
+    // Pedimos permiso pero no bloqueamos si dice 'denied' porque en versiones recientes 
+    // de Android/iOS el sistema abre el Photo Picker nativo sin necesitar permisos de almacenamiento completos.
+    await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    const pickerResult = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
+    try {
+      const pickerResult = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
 
-    if (!pickerResult.canceled) {
-      const asset = pickerResult.assets[0];
-      if (asset.mimeType && !asset.mimeType.startsWith('image/')) {
-        alert("¡Error! Selecciona solo un archivo de imagen.");
-        return;
+      if (!pickerResult.canceled) {
+        const asset = pickerResult.assets[0];
+        if (asset.mimeType && !asset.mimeType.startsWith('image/')) {
+          alert("¡Error! Selecciona solo un archivo de imagen.");
+          return;
+        }
+        setLogoUri(asset.uri);
+        setErrors({ ...errors, logo: null });
       }
-      setLogoUri(asset.uri);
-      setErrors({ ...errors, logo: null });
+    } catch (err) {
+      alert("Error al abrir la galería: " + err.message);
     }
   };
 
@@ -381,15 +383,16 @@ export default function Registro({ onBack, onRegistrationSuccess }) {
           {errors.logo && <Text style={[styles.errorText, { marginBottom: 10 }]}>{errors.logo}</Text>}
 
           <View style={styles.termsMaster}>
-            <View style={styles.termsContainer}>
-              <TouchableOpacity
-                style={[styles.checkbox, isChecked && styles.checkboxActive]}
-                onPress={() => { setIsChecked(!isChecked); setErrors({ ...errors, terminos: null }); }}
-              >
-                {isChecked && <AntDesign name="check" size={10} color="#fff" />}
-              </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.termsContainer} 
+              onPress={() => { setIsChecked(!isChecked); setErrors({ ...errors, terminos: null }); }}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, isChecked && styles.checkboxActive]}>
+                {isChecked && <AntDesign name="check" size={14} color="#fff" />}
+              </View>
               <Text style={styles.termsText}>Acepto términos y condiciones</Text>
-            </View>
+            </TouchableOpacity>
             {errors.terminos && <Text style={[styles.errorText, { marginTop: -20, marginBottom: 25 }]}>{errors.terminos}</Text>}
           </View>
 
@@ -427,12 +430,12 @@ const styles = StyleSheet.create({
   pickerContainer: { backgroundColor: '#cbd5e1', borderRadius: 25, height: 40, justifyContent: 'center', overflow: 'hidden' },
   picker: { height: 40, color: '#0f172a' },
   uploadButton: { backgroundColor: '#e2e8f0', width: 60, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-  termsContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 25 },
+  termsContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 25, paddingVertical: 10, paddingHorizontal: 15 },
   termsMaster: { alignItems: 'center', width: '100%' },
-  checkbox: { width: 14, height: 14, backgroundColor: '#e2e8f0', marginRight: 8, justifyContent: 'center', alignItems: 'center' },
+  checkbox: { width: 20, height: 20, borderRadius: 4, backgroundColor: '#e2e8f0', marginRight: 10, justifyContent: 'center', alignItems: 'center' },
   checkboxActive: { backgroundColor: '#0891b2' },
-  termsText: { color: '#cbd5e1', fontSize: 10 },
-  submitButton: { backgroundColor: '#0891b2', paddingVertical: 10, borderRadius: 20, width: '80%', alignItems: 'center', marginBottom: 15 },
+  termsText: { color: '#cbd5e1', fontSize: 13 },
+  submitButton: { backgroundColor: '#0891b2', paddingVertical: 12, borderRadius: 20, width: '80%', alignItems: 'center', marginBottom: 15 },
   submitButtonText: { color: '#ffffff', fontWeight: 'bold' },
   backButtonText: { color: '#0891b2', fontWeight: 'bold' },
 });

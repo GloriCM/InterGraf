@@ -22,6 +22,7 @@ export default function App() {
    * Detecta cuando el usuario llega desde un correo de recuperación de contraseña.
    */
   useEffect(() => {
+    // Listener de Supabase
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("Evento Auth Detectado:", event);
       
@@ -81,41 +82,47 @@ export default function App() {
   if (currentScreen === 'dashboard' && userData) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
+        <StatusBar barStyle="light-content" backgroundColor="#0B1120" />
         <View style={styles.dashboardContainer}>
-          <Ionicons name="aperture" size={80} color="#0891b2" />
+          <View style={styles.iconContainer}>
+            <Ionicons name="shield-checkmark" size={36} color="#3b82f6" />
+          </View>
+          
           <Text style={styles.welcomeText}>¡Bienvenido!</Text>
           <Text style={styles.companyNameText}>{userData.razon_social}</Text>
+          <Text style={styles.subtitleText}>Selecciona tu rol inicial</Text>
           
-          <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>NIT: <Text style={styles.infoValue}>{userData.numero_documento}</Text></Text>
-            <Text style={styles.infoLabel}>Ciudad: <Text style={styles.infoValue}>{userData.ciudad}</Text></Text>
-            <Text style={styles.infoLabel}>Sector: <Text style={styles.infoValue}>{userData.sector_empresarial}</Text></Text>
-          </View>
-
           <TouchableOpacity 
-            style={[styles.logoutButton, { backgroundColor: '#10b981', marginBottom: 15 }]} 
-            onPress={() => setCurrentScreen('inventario')}
+            style={styles.roleCard} 
+            // onPress={() => setCurrentScreen('comprador')} // Descomenta cuando tengas la pantalla
           >
-            <Text style={styles.logoutButtonText}>Gestionar Inventario</Text>
+            <View style={[styles.roleIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
+              <Ionicons name="cart-outline" size={24} color="#3b82f6" />
+            </View>
+            <Text style={styles.roleTitle}>Comprador</Text>
+            <Text style={styles.roleSubtitle}>ADQUIRIR INSUMOS</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.logoutButton, { backgroundColor: '#0ea5e9', marginBottom: 15 }]} 
-            onPress={() => setCurrentScreen('crear_producto')}
+            style={styles.roleCard} 
+            // onPress={() => setCurrentScreen('vendedor')} // Descomenta cuando tengas la pantalla
           >
-            <Text style={styles.logoutButtonText}>Publicar Nuevo Producto</Text>
+            <View style={[styles.roleIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+              <Ionicons name="trending-up-outline" size={24} color="#10b981" />
+            </View>
+            <Text style={styles.roleTitle}>Vendedor</Text>
+            <Text style={styles.roleSubtitle}>GESTIONAR BODEGA</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.logoutButton, { backgroundColor: '#ef4444' }]} 
+            style={styles.logoutTextButton} 
             onPress={async () => {
               await supabase.auth.signOut();
               setUserData(null);
               setCurrentScreen('login');
             }}
           >
-            <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
+            <Text style={styles.logoutText}>Cerrar Sesión</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -151,52 +158,79 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#0B1120',
   },
   dashboardContainer: {
     flex: 1,
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#0B1120',
+    paddingTop: 80,
+  },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#020617',
+    marginBottom: 24,
   },
   welcomeText: {
-    color: '#94a3b8',
-    fontSize: 18,
-    marginTop: 20,
-  },
-  companyNameText: {
     color: '#ffffff',
     fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
+    marginBottom: 8,
   },
-  infoCard: {
-    backgroundColor: '#0f172a',
-    width: '90%',
-    padding: 25,
-    borderRadius: 20,
-    marginBottom: 40,
-  },
-  infoLabel: {
-    color: '#94a3b8',
-    fontSize: 14,
-    marginBottom: 10,
-  },
-  infoValue: {
+  companyNameText: {
     color: '#ffffff',
+    fontSize: 24,
     fontWeight: '600',
+    marginBottom: 8,
   },
-  logoutButton: {
-    backgroundColor: '#ef4444',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-  },
-  logoutButtonText: {
-    color: '#ffffff',
-    fontWeight: 'bold',
+  subtitleText: {
+    color: '#94a3b8',
     fontSize: 16,
+    marginBottom: 48,
+  },
+  roleCard: {
+    backgroundColor: '#0F172A',
+    width: '100%',
+    padding: 24,
+    borderRadius: 24,
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  roleIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  roleTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  roleSubtitle: {
+    color: '#64748b',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1.5,
+  },
+  logoutTextButton: {
+    marginTop: 'auto',
+    marginBottom: 20,
+    padding: 10,
+  },
+  logoutText: {
+    color: '#ef4444',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

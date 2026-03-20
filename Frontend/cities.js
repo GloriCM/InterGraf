@@ -73,5 +73,6 @@ export const colombianCities = [
     "Villavicencio, Colombia",
     "Yopal, Colombia",
     "Yumbo, Colombia",
-    "Zipaquirá, Colombia"
+    "Zipaquirá, Colombia",
+    "La cumbre, Colombia",
 ];
