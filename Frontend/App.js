@@ -8,6 +8,7 @@ import Inventario from './Inventario';
 import Registro from './Registro';
 import RecuperarPassword from './RecuperarPassword';
 import RestablecerPassword from './RestablecerPassword';
+import Perfil from './Perfil';
 import { useEffect } from 'react';
 
 export default function App() {
@@ -135,7 +136,7 @@ export default function App() {
 
   // Pantalla de Crear Producto
   if (currentScreen === 'crear_producto') {
-    return <CrearProducto onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
+    return <CrearProducto userData={userData} onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
   }
 
   // Pantalla de Editar Producto
@@ -152,6 +153,7 @@ export default function App() {
 
   // Pantalla de Inventario
   if (currentScreen === 'inventario') {
+<<<<<<< HEAD
     return (
       <Inventario 
         onBack={() => setCurrentScreen('dashboard')} 
@@ -162,6 +164,19 @@ export default function App() {
           }
           setCurrentScreen(screen);
         }} 
+=======
+    return <Inventario userData={userData} onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
+  }
+
+  // Pantalla de Perfil
+  if (currentScreen === 'perfil') {
+    return (
+      <Perfil 
+        userData={userData} 
+        onUpdate={setUserData} 
+        onBack={() => setCurrentScreen('dashboard')} 
+        onNavigate={setCurrentScreen} 
+>>>>>>> 1622f07803b49893c76c41b5668510acc994ef17
       />
     );
   }

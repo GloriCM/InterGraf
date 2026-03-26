@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,10 +10,13 @@ import {
   Platform,
   Modal,
   TextInput,
-  StatusBar
+  StatusBar,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from './supabase';
 
+<<<<<<< HEAD
 export default function Inventario({ onBack, onNavigate, userData }) {
   // Datos simulados iniciales del inventario
   // id: identificador único del producto
@@ -24,6 +27,56 @@ export default function Inventario({ onBack, onNavigate, userData }) {
     { id: 3, empresa_id: 999, identificador: 'Lonas Publicitarias (Ajeno)', sku: 'LON-003', stock: 15, minimo: 20 },
     { id: 4, empresa_id: userData?.id || 1, identificador: 'Agendas Corporativas', sku: 'AGE-004', stock: 0, minimo: 10 },
   ]);
+=======
+export default function Inventario({ userData, onBack, onNavigate }) {
+  // Datos provenientes de la base de datos
+  const [inventario, setInventario] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Efecto para cargar los productos desde Supabase
+  useEffect(() => {
+    const fetchProductos = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('productos')
+          .select('*')
+          .eq('usuario_id', userData?.id || null);
+
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          // Mapear los datos de BD a la estructura que espera la interfaz
+          const productosFormateados = data.map((prod) => ({
+            id: prod.id,
+            identificador: prod.nombre,
+            sku: prod.id ? prod.id.substring(0, 8).toUpperCase() : 'N/A', // Generar SKU visual corto a partir del UUID
+            stock: prod.stock,
+            minimo: prod.cantidad_minima || 10,
+          }));
+          setInventario(productosFormateados);
+        }
+      } catch (error) {
+        console.error('Error fetching productos:', error.message);
+        if (Platform.OS === 'web') {
+          window.alert('Error al cargar inventario: ' + error.message);
+        } else {
+          Alert.alert('Error', 'No se pudo cargar el inventario: ' + error.message);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (userData?.id) {
+      fetchProductos();
+    } else {
+      setLoading(false);
+    }
+  }, [userData]);
+>>>>>>> 1622f07803b49893c76c41b5668510acc994ef17
 
   // Historial de movimientos
   const [historial, setHistorial] = useState([]);
@@ -56,7 +109,7 @@ export default function Inventario({ onBack, onNavigate, userData }) {
     return { texto: 'Disponible', color: '#10b981' };
   };
 
-  const procesarAjuste = () => {
+  const procesarAjuste = async () => {
     if (!productoAjustado) return;
 
     let cantVal = parseInt(cantidadAjuste, 10);
@@ -91,29 +144,47 @@ export default function Inventario({ onBack, onNavigate, userData }) {
       return;
     }
 
-    // a) Actualizar el inventario
-    const nuevoInventario = inventario.map(prod => 
-      prod.id === productoAjustado.id ? { ...prod, stock: nuevoStock } : prod
-    );
-    setInventario(nuevoInventario);
+    try {
+      // Registrar actualización en Supabase
+      const { error } = await supabase
+        .from('productos')
+        .update({ stock: nuevoStock })
+        .eq('id', productoAjustado.id);
+        
+      if (error) throw error;
 
-    // c) Genera un registro en el historial de movimientos
-    const nuevoRegistro = {
-      id: Date.now(),
-      fecha: new Date().toLocaleString(),
-      productoId: productoAjustado.id,
-      identificador: productoAjustado.identificador,
-      sku: productoAjustado.sku,
-      operacion: tipoOperacion,
-      stockAnterior: productoAjustado.stock,
-      stockNuevo: nuevoStock,
-      motivo: motivoAjuste || 'Ajuste manual sin especificar',
-    };
-    
-    setHistorial([nuevoRegistro, ...historial]);
+      // a) Actualizar el inventario local
+      const nuevoInventario = inventario.map(prod => 
+        prod.id === productoAjustado.id ? { ...prod, stock: nuevoStock } : prod
+      );
+      setInventario(nuevoInventario);
 
-    // Cerrar modal
-    setModalVisible(false);
+      // c) Genera un registro en el historial de movimientos
+      const nuevoRegistro = {
+        id: Date.now(),
+        fecha: new Date().toLocaleString(),
+        productoId: productoAjustado.id,
+        identificador: productoAjustado.identificador,
+        sku: productoAjustado.sku,
+        operacion: tipoOperacion,
+        stockAnterior: productoAjustado.stock,
+        stockNuevo: nuevoStock,
+        motivo: motivoAjuste || 'Ajuste manual sin especificar',
+      };
+      
+      setHistorial([nuevoRegistro, ...historial]);
+
+      // Cerrar modal
+      setModalVisible(false);
+
+    } catch (err) {
+      console.error('Error actualizando stock:', err.message);
+      if (Platform.OS === 'web') {
+        window.alert('Error al actualizar inventario: ' + err.message);
+      } else {
+        Alert.alert('Error', 'No se pudo guardar el ajuste: ' + err.message);
+      }
+    }
   };
 
   // --- Renderizado ---
@@ -142,7 +213,7 @@ export default function Inventario({ onBack, onNavigate, userData }) {
             <Ionicons name={verHistorial ? "cube" : "cube-outline"} size={24} color={verHistorial ? "#0ea5e9" : "#64748b"} style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('perfil')}>
             <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
@@ -158,9 +229,14 @@ export default function Inventario({ onBack, onNavigate, userData }) {
       <ScrollView contentContainerStyle={styles.scrollContent} style={styles.scrollView}>
         {!verHistorial ? (
           // --- TABLA DE INVENTARIO ---
-          inventario.map((item) => {
-            const estado = calcularEstado(item.stock, item.minimo);
-            return (
+          loading ? (
+             <ActivityIndicator size="large" color="#0ea5e9" style={{ marginTop: 50 }} />
+          ) : inventario.length === 0 ? (
+             <Text style={{color: '#94a3b8', marginTop: 50}}>No hay productos en inventario.</Text>
+          ) : (
+            inventario.map((item) => {
+              const estado = calcularEstado(item.stock, item.minimo);
+              return (
               <View key={item.id} style={styles.cardItem}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.itemTitle}>{item.identificador}</Text>
@@ -216,6 +292,7 @@ export default function Inventario({ onBack, onNavigate, userData }) {
               </View>
             );
           })
+          )
         ) : (
           // --- LISTA DE HISTORIAL ---
           historial.length === 0 ? (

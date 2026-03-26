@@ -9,16 +9,24 @@ import {
   ScrollView,
   Alert,
   Platform,
-  StatusBar
+  StatusBar,
+  ActivityIndicator
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker'; // Si se usa para categorías, aunque ahora es un TextInput
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer';
+import { supabase } from './supabase';
 
+<<<<<<< HEAD
 export default function CrearProducto({ onBack, onNavigate, producto, userData }) {
   // Determinar si estamos en modo edición
   const esEdicion = !!producto;
 
+=======
+export default function CrearProducto({ userData, onBack, onNavigate }) {
+>>>>>>> 1622f07803b49893c76c41b5668510acc994ef17
   // --- Estados del Formulario ---
   const [nombre, setNombre] = useState(producto?.nombre || '');
   const [precio, setPrecio] = useState(producto?.precio?.toString() || '');
@@ -32,7 +40,13 @@ export default function CrearProducto({ onBack, onNavigate, producto, userData }
   const [tiempoEstimado, setTiempoEstimado] = useState(producto?.tiempoEstimado || '');
 
   // Imágenes
+<<<<<<< HEAD
   const [imagenes, setImagenes] = useState(producto?.imagenes || []);
+=======
+  const [imagenes, setImagenes] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+>>>>>>> 1622f07803b49893c76c41b5668510acc994ef17
 
   // Efecto para verificar propiedad en modo edición
   useEffect(() => {
@@ -74,7 +88,11 @@ export default function CrearProducto({ onBack, onNavigate, producto, userData }
     }
   };
 
+<<<<<<< HEAD
   const handleGuardar = () => {
+=======
+  const handleLanzarAlMercado = async () => {
+>>>>>>> 1622f07803b49893c76c41b5668510acc994ef17
     // 1. Nombre obligatorio y máximo 150 caracteres
     if (!nombre || nombre.trim() === '') {
       return mostrarError('El nombre del producto es obligatorio.');
@@ -121,6 +139,7 @@ export default function CrearProducto({ onBack, onNavigate, producto, userData }
       return mostrarError('Por favor sube al menos una imagen de alta calidad.');
     }
 
+<<<<<<< HEAD
     // --- ÉXITO ---
     const productoDatos = {
       ...(esEdicion ? { id: producto.id } : {}),
@@ -151,6 +170,94 @@ export default function CrearProducto({ onBack, onNavigate, producto, userData }
 
     // Volver al inventario si es edición, o dashboard si es creación
     onBack();
+=======
+    setLoading(true);
+
+    try {
+      // 1. Subir imágenes
+      const uploadedImageUrls = [];
+      const cleanName = nombre.replace(/[^a-zA-Z0-9]/g, '');
+      
+      for (let i = 0; i < imagenes.length; i++) {
+        const logoUri = imagenes[i];
+        let base64 = "";
+        let ext = "jpeg";
+
+        if (Platform.OS === 'web') {
+          const response = await fetch(logoUri);
+          const blob = await response.blob();
+          base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          ext = blob.type.split('/')[1] || 'jpeg';
+        } else {
+          base64 = await FileSystem.readAsStringAsync(logoUri, { encoding: 'base64' });
+          ext = logoUri.split('.').pop() || 'jpg';
+        }
+
+        const fileName = `${cleanName}_${Date.now()}_img${i}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from('productos_fotos')
+          .upload(fileName, decode(base64), { contentType: `image/${ext}` });
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage.from('productos_fotos').getPublicUrl(fileName);
+        uploadedImageUrls.push(publicUrlData.publicUrl);
+      }
+
+      // 2. Insertar en Base de Datos
+      const productoDatos = {
+        usuario_id: userData?.id || null, // Vínculo con el vendedor (ID numérico o UUID en Usuarios_Registrados)
+        nombre,
+        precio: precioUnitarioNum,
+        stock: stockNum,
+        descripcion_tecnica: descripcionTecnica,
+        categoria,
+        precios_volumen: preciosVolumen,
+        cantidad_minima: cantidadMinNum,
+        tiempo_estimado: tiempoEstimado,
+        imagenes: uploadedImageUrls // Soporte nativo de un array en PostgreSQL Text[] o JSONB
+      };
+
+      const { data, error } = await supabase
+        .from('productos')
+        .insert([productoDatos])
+        .select();
+
+      if (error) throw error;
+
+      setLoading(false);
+      if (Platform.OS === 'web') {
+        window.alert("¡Producto Creado!\n\nEl producto ha sido lanzado al mercado exitosamente.");
+      } else {
+        Alert.alert('¡Producto Creado!', 'El producto ha sido lanzado al mercado exitosamente.');
+      }
+      
+      // Limpiar formulario localmente
+      setNombre('');
+      setPrecio('');
+      setStock('');
+      setDescripcionTecnica('');
+      setCategoria('');
+      setPreciosVolumen('');
+      setCantidadMinima('1');
+      setTiempoEstimado('');
+      setImagenes([]);
+
+    } catch (err) {
+      setLoading(false);
+      console.error("Error guardando producto:", err);
+      if (Platform.OS === 'web') {
+        window.alert("Error creando el producto: " + err.message);
+      } else {
+        Alert.alert("Error", "Error creando el producto: " + err.message);
+      }
+    }
+>>>>>>> 1622f07803b49893c76c41b5668510acc994ef17
   };
 
   return (
@@ -177,7 +284,7 @@ export default function CrearProducto({ onBack, onNavigate, producto, userData }
             <Ionicons name="cube-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('perfil')}>
             <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
@@ -333,8 +440,21 @@ export default function CrearProducto({ onBack, onNavigate, producto, userData }
           </View>
 
           {/* Botón Principal */}
+<<<<<<< HEAD
           <TouchableOpacity style={styles.lanzarBtn} onPress={handleGuardar}>
             <Text style={styles.lanzarBtnText}>{esEdicion ? 'Guardar Cambios' : 'Lanzar al mercado'}</Text>
+=======
+          <TouchableOpacity 
+            style={[styles.lanzarBtn, loading && { opacity: 0.7 }]} 
+            onPress={handleLanzarAlMercado}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.lanzarBtnText}>Lanzar al mercado</Text>
+            )}
+>>>>>>> 1622f07803b49893c76c41b5668510acc994ef17
           </TouchableOpacity>
 
         </View>
