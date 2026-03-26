@@ -14,13 +14,15 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function Inventario({ onBack, onNavigate }) {
+export default function Inventario({ onBack, onNavigate, userData }) {
   // Datos simulados iniciales del inventario
+  // id: identificador único del producto
+  // empresa_id: id de la empresa propietaria (para validar permisos de edición)
   const [inventario, setInventario] = useState([
-    { id: 1, identificador: 'Afiches A3', sku: 'AFI-001', stock: 150, minimo: 50 },
-    { id: 2, identificador: 'Tarjetas de Presentación', sku: 'TAR-002', stock: 500, minimo: 200 },
-    { id: 3, identificador: 'Lonas Publicitarias', sku: 'LON-003', stock: 15, minimo: 20 },
-    { id: 4, identificador: 'Agendas Corporativas', sku: 'AGE-004', stock: 0, minimo: 10 },
+    { id: 1, empresa_id: userData?.id || 1, identificador: 'Afiches A3', sku: 'AFI-001', stock: 150, minimo: 50 },
+    { id: 2, empresa_id: userData?.id || 1, identificador: 'Tarjetas de Presentación', sku: 'TAR-002', stock: 500, minimo: 200 },
+    { id: 3, empresa_id: 999, identificador: 'Lonas Publicitarias (Ajeno)', sku: 'LON-003', stock: 15, minimo: 20 },
+    { id: 4, empresa_id: userData?.id || 1, identificador: 'Agendas Corporativas', sku: 'AGE-004', stock: 0, minimo: 10 },
   ]);
 
   // Historial de movimientos
@@ -184,11 +186,33 @@ export default function Inventario({ onBack, onNavigate }) {
                   </View>
                 </View>
 
-                {/* BOTÓN PARA AJUSTE MANUAL */}
-                <TouchableOpacity style={styles.btnAjustar} onPress={() => abrirModalDeAjuste(item)}>
-                  <Ionicons name="create-outline" size={16} color="#0f172a" />
-                  <Text style={styles.btnAjustarText}>Ajustar Stock</Text>
-                </TouchableOpacity>
+                {/* BOTONES DE ACCIÓN */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 }}>
+                  {/* Ajustar Stock (Solo para el responsable) */}
+                  <TouchableOpacity 
+                    style={[styles.btnAccion, { backgroundColor: '#cbd5e1', flex: 1, marginRight: 8 }]} 
+                    onPress={() => abrirModalDeAjuste(item)}
+                  >
+                    <Ionicons name="stats-chart-outline" size={16} color="#0f172a" />
+                    <Text style={styles.btnAccionText}>Stock</Text>
+                  </TouchableOpacity>
+
+                  {/* Editar Info (Restringido a la empresa propietaria) */}
+                  {item.empresa_id === userData?.id ? (
+                    <TouchableOpacity 
+                      style={[styles.btnAccion, { backgroundColor: '#0ea5e9', flex: 1.5 }]} 
+                      onPress={() => onNavigate('editar_producto', item)}
+                    >
+                      <Ionicons name="create-outline" size={16} color="#ffffff" />
+                      <Text style={[styles.btnAccionText, { color: '#ffffff' }]}>Editar Producto</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={[styles.btnAccion, { backgroundColor: '#1e293b', flex: 1.5, opacity: 0.5 }]}>
+                      <Ionicons name="lock-closed-outline" size={16} color="#64748b" />
+                      <Text style={[styles.btnAccionText, { color: '#64748b' }]}>Solo Lectura</Text>
+                    </View>
+                  )}
+                </View>
               </View>
             );
           })
@@ -377,16 +401,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
-  btnAjustar: {
-    backgroundColor: '#cbd5e1',
+  btnAccion: {
     flexDirection: 'row',
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 15,
   },
-  btnAjustarText: {
+  btnAccionText: {
     color: '#0f172a',
     fontSize: 13,
     fontWeight: 'bold',

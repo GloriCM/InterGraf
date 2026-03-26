@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,27 +11,36 @@ import {
   Platform,
   StatusBar
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { Picker } from '@react-native-picker/picker'; // Si se usa para categorías, aunque ahora es un TextInput
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function CrearProducto({ onBack, onNavigate }) {
+export default function CrearProducto({ onBack, onNavigate, producto, userData }) {
+  // Determinar si estamos en modo edición
+  const esEdicion = !!producto;
+
   // --- Estados del Formulario ---
-  const [nombre, setNombre] = useState('');
-  const [precio, setPrecio] = useState('');
-  const [stock, setStock] = useState('');
-  const [descripcionTecnica, setDescripcionTecnica] = useState('');
+  const [nombre, setNombre] = useState(producto?.nombre || '');
+  const [precio, setPrecio] = useState(producto?.precio?.toString() || '');
+  const [stock, setStock] = useState(producto?.stock?.toString() || '');
+  const [descripcionTecnica, setDescripcionTecnica] = useState(producto?.descripcionTecnica || '');
 
   // Nuevos campos solicitados
-  const [categoria, setCategoria] = useState('');
-  const [preciosVolumen, setPreciosVolumen] = useState('');
-  const [cantidadMinima, setCantidadMinima] = useState('1'); // Por defecto 1
-  const [tiempoEstimado, setTiempoEstimado] = useState('');
+  const [categoria, setCategoria] = useState(producto?.categoria || '');
+  const [preciosVolumen, setPreciosVolumen] = useState(producto?.preciosVolumen || '');
+  const [cantidadMinima, setCantidadMinima] = useState(producto?.cantidadMinima?.toString() || '1');
+  const [tiempoEstimado, setTiempoEstimado] = useState(producto?.tiempoEstimado || '');
 
   // Imágenes
-  const [imagenes, setImagenes] = useState([]);
+  const [imagenes, setImagenes] = useState(producto?.imagenes || []);
 
-
+  // Efecto para verificar propiedad en modo edición
+  useEffect(() => {
+    if (esEdicion && producto.empresa_id !== userData?.id) {
+       mostrarError("No tienes permisos para editar este producto.");
+       onBack();
+    }
+  }, [esEdicion, producto, userData]);
 
   // --- Funciones ---
 
@@ -65,7 +74,7 @@ export default function CrearProducto({ onBack, onNavigate }) {
     }
   };
 
-  const handleLanzarAlMercado = () => {
+  const handleGuardar = () => {
     // 1. Nombre obligatorio y máximo 150 caracteres
     if (!nombre || nombre.trim() === '') {
       return mostrarError('El nombre del producto es obligatorio.');
@@ -114,6 +123,7 @@ export default function CrearProducto({ onBack, onNavigate }) {
 
     // --- ÉXITO ---
     const productoDatos = {
+      ...(esEdicion ? { id: producto.id } : {}),
       nombre,
       precio: precioUnitarioNum,
       stock: stockNum,
@@ -122,19 +132,25 @@ export default function CrearProducto({ onBack, onNavigate }) {
       preciosVolumen,
       cantidadMinima: cantidadMinNum,
       tiempoEstimado,
-      imagenes
+      imagenes,
+      empresa_id: userData?.id
     };
 
-    console.log("Producto a guardar:", productoDatos);
+    console.log(esEdicion ? "Producto a actualizar:" : "Producto a guardar:", productoDatos);
+
+    const tituloExito = esEdicion ? '¡Producto Actualizado!' : '¡Producto Creado!';
+    const mensajeExito = esEdicion 
+      ? 'Los cambios se han guardado exitosamente.' 
+      : 'El producto ha sido lanzado al mercado exitosamente.';
 
     if (Platform.OS === 'web') {
-      window.alert("¡Producto Creado!\n\nEl producto ha sido lanzado al mercado exitosamente.");
+      window.alert(`${tituloExito}\n\n${mensajeExito}`);
     } else {
-      Alert.alert('¡Producto Creado!', 'El producto ha sido lanzado al mercado exitosamente.');
+      Alert.alert(tituloExito, mensajeExito);
     }
 
-    // Aquí iría la lógica para volver o limpiar el formulario
-    // if(onBack) onBack(); 
+    // Volver al inventario si es edición, o dashboard si es creación
+    onBack();
   };
 
   return (
@@ -171,15 +187,24 @@ export default function CrearProducto({ onBack, onNavigate }) {
         </View>
       </View>
 
-      <Text style={styles.title}>Agregar Producto</Text>
+      <View style={styles.titleWrapper}>
+        <TouchableOpacity 
+          style={styles.backArrowOnly} 
+          onPress={() => onNavigate && onNavigate('inventario')}
+        >
+          <Ionicons name="chevron-back" size={32} color="#ffffff" />
+        </TouchableOpacity>
+        <Text style={styles.title}>{esEdicion ? 'Editar Producto' : 'Agregar Producto'}</Text>
+        <View style={{ width: 32 }} />
+      </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} style={styles.scrollView}>
         <View style={styles.card}>
 
-          {/* Icono + central - Simula agregar un logo rápido si fuera necesario. En la UI es puramente decorativo y evoca creación */}
+           {/* Icono + central */}
           <View style={styles.topIconContainer}>
             <View style={styles.topIconCircle}>
-              <Ionicons name="add-outline" size={32} color="#60a5fa" />
+              <Ionicons name={esEdicion ? "create-outline" : "add-outline"} size={32} color="#60a5fa" />
             </View>
           </View>
 
@@ -308,8 +333,8 @@ export default function CrearProducto({ onBack, onNavigate }) {
           </View>
 
           {/* Botón Principal */}
-          <TouchableOpacity style={styles.lanzarBtn} onPress={handleLanzarAlMercado}>
-            <Text style={styles.lanzarBtnText}>Lanzar al mercado</Text>
+          <TouchableOpacity style={styles.lanzarBtn} onPress={handleGuardar}>
+            <Text style={styles.lanzarBtnText}>{esEdicion ? 'Guardar Cambios' : 'Lanzar al mercado'}</Text>
           </TouchableOpacity>
 
         </View>
@@ -340,13 +365,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)'
   },
+  titleWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 25,
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  backArrowOnly: {
+    padding: 5,
+  },
   title: {
     color: '#ffffff',
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginTop: 10,
-    marginBottom: 20,
   },
   scrollView: {
     flex: 1,

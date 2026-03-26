@@ -17,6 +17,9 @@ export default function App() {
   // Datos de la empresa después de loguearse con éxito
   const [userData, setUserData] = useState(null); 
 
+  // Datos del producto seleccionado para editar
+  const [selectedProduct, setSelectedProduct] = useState(null);
+
   /**
    * Efecto para escuchar eventos de autenticación globales de Supabase.
    * Detecta cuando el usuario llega desde un correo de recuperación de contraseña.
@@ -129,14 +132,38 @@ export default function App() {
     );
   }
 
+
   // Pantalla de Crear Producto
   if (currentScreen === 'crear_producto') {
     return <CrearProducto onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
   }
 
+  // Pantalla de Editar Producto
+  if (currentScreen === 'editar_producto') {
+    return (
+      <CrearProducto 
+        onBack={() => setCurrentScreen('inventario')} 
+        onNavigate={setCurrentScreen} 
+        producto={selectedProduct}
+        userData={userData}
+      />
+    );
+  }
+
   // Pantalla de Inventario
   if (currentScreen === 'inventario') {
-    return <Inventario onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
+    return (
+      <Inventario 
+        onBack={() => setCurrentScreen('dashboard')} 
+        userData={userData}
+        onNavigate={(screen, extraData) => {
+          if (screen === 'editar_producto') {
+            setSelectedProduct(extraData);
+          }
+          setCurrentScreen(screen);
+        }} 
+      />
+    );
   }
 
   // Pantalla de Registro (componente aislado con su propio estado)

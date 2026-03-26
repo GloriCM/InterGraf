@@ -4,8 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
 
 /**
- * Componente para establecer una nueva contraseña.
- * RF-004: Recuperación de contraseña - Paso 2: Validación y actualización.
+ * Componente para establecer una nueva contraseña (Validación y actualización.)
  */
 export default function RestablecerPassword({ onBack, onResetSuccess }) {
   const [password, setPassword] = useState('');

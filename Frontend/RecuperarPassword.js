@@ -4,8 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
 
 /**
- * Componente para solicitar el enlace de recuperación de contraseña.
- * RF-004: Recuperación de contraseña - Paso 1: Solicitud por correo.
+ * Componente para solicitar el enlace de recuperación de contraseña (Solicitud por correo.)
  */
 export default function RecuperarPassword({ onBack }) {
   const [email, setEmail] = useState('');
