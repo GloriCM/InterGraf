@@ -143,7 +143,7 @@ export default function Inventario({ onBack, onNavigate }) {
             <Ionicons name={verHistorial ? "cube" : "cube-outline"} size={24} color={verHistorial ? "#0ea5e9" : "#64748b"} style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('perfil')}>
             <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
