@@ -152,12 +152,7 @@ export default function CrearProducto({ onBack, onNavigate }) {
             <Ionicons name="home" size={22} color="#f8fafc" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
           
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('crear_producto')}>
-            <View style={{ width: 24, height: 24, borderWidth: 1.5, borderColor: '#0ea5e9', borderRadius: 6, justifyContent: 'center', alignItems: 'center', marginHorizontal: 8, backgroundColor: 'rgba(14, 165, 233, 0.1)' }}>
-              <Ionicons name="add" size={18} color="#0ea5e9" />
-            </View>
-          </TouchableOpacity>
-          
+
           <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
             <Ionicons name="layers" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
