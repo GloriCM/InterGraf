@@ -8,6 +8,7 @@ import Inventario from './Inventario';
 import Registro from './Registro';
 import RecuperarPassword from './RecuperarPassword';
 import RestablecerPassword from './RestablecerPassword';
+import Mensajeria from './Mensajeria';
 import { useEffect } from 'react';
 
 export default function App() {
@@ -132,6 +133,11 @@ export default function App() {
   // Pantalla de Crear Producto
   if (currentScreen === 'crear_producto') {
     return <CrearProducto onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
+  }
+
+  // Pantalla de Mensajeria
+  if (currentScreen === 'mensajeria') {
+    return <Mensajeria onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
   }
 
   // Pantalla de Inventario

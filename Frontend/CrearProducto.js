@@ -161,6 +161,10 @@ export default function CrearProducto({ onBack, onNavigate }) {
             <Ionicons name="cube-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('mensajeria')}>
+            <Ionicons name="chatbubble-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
+          </TouchableOpacity>
+
           <TouchableOpacity>
             <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
