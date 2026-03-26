@@ -137,7 +137,7 @@ export default function App() {
 
   // Pantalla de Inventario
   if (currentScreen === 'inventario') {
-    return <Inventario onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
+    return <Inventario userData={userData} onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
   }
 
   // Pantalla de Perfil

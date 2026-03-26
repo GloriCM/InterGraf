@@ -170,7 +170,7 @@ export default function CrearProducto({ userData, onBack, onNavigate }) {
       };
 
       const { data, error } = await supabase
-        .from('Productos')
+        .from('productos')
         .insert([productoDatos])
         .select();
 
