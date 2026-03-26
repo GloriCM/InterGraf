@@ -131,10 +131,7 @@ export default function Inventario({ onBack, onNavigate }) {
             <Ionicons name="home" size={22} color="#f8fafc" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
           
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('crear_producto')}>
-            <Ionicons name="add-outline" size={26} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-          
+
           <TouchableOpacity onPress={() => setVerHistorial(false)}>
             <Ionicons name={!verHistorial ? "layers" : "layers-outline"} size={24} color={!verHistorial ? "#0ea5e9" : "#64748b"} style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
@@ -270,6 +267,14 @@ export default function Inventario({ onBack, onNavigate }) {
           </View>
         </Modal>
       )}
+
+      {/* Botón Flotante para Crear Producto */}
+      <TouchableOpacity 
+        style={styles.fab} 
+        onPress={() => onNavigate && onNavigate('crear_producto')}
+      >
+        <Ionicons name="add" size={32} color="#ffffff" />
+      </TouchableOpacity>
 
     </SafeAreaView>
   );
@@ -519,5 +524,21 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: 'bold',
+  },
+  fab: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    right: 20,
+    bottom: 25,
+    backgroundColor: '#0ea5e9',
+    borderRadius: 30,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 5,
   },
 });
