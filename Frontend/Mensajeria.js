@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,122 +11,153 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Alert,
-  Modal
+  Modal,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from './supabase';
 
-export default function Mensajeria({ onBack, onNavigate }) {
+export default function Mensajeria({ onBack, onNavigate, userData }) {
   // Estado para la vista: 'lista' (Conversaciones) o 'chat' (Mensajes de un pedido)
   const [vistaActiva, setVistaActiva] = useState('lista');
   const [conversacionActiva, setConversacionActiva] = useState(null);
   const [nuevoMensaje, setNuevoMensaje] = useState('');
+  const [mensajes, setMensajes] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   // Estados para la nueva conversación
   const [modalNuevaConvVisible, setModalNuevaConvVisible] = useState(false);
   const [nuevoPedidoId, setNuevoPedidoId] = useState('');
-  const [nuevoDestinatario, setNuevoDestinatario] = useState('');
+  const [nuevoDestinatarioId, setNuevoDestinatarioId] = useState(''); // UUID del otro usuario
 
-  // Datos mockeados de conversaciones asociadas a pedidos
-  const [conversaciones, setConversaciones] = useState([
-    {
-      id: 1,
-      pedidoId: 'PED-1024',
-      contraparte: 'Proveedor Gráfico S.A.',
-      rol: 'Proveedor',
-      ultimoMensaje: 'Los afiches ya están en producción.',
-      fecha: '10:30 AM',
-      mensajes: [
-        { id: 101, sender: 'me', text: 'Hola, ¿cómo va el pedido PED-1024?', time: '10:00 AM' },
-        { id: 102, sender: 'other', text: 'Hola. Revisando tu orden ahora mismo.', time: '10:15 AM' },
-        { id: 103, sender: 'other', text: 'Los afiches ya están en producción.', time: '10:30 AM' },
-      ]
-    },
-    {
-      id: 2,
-      pedidoId: 'PED-0988',
-      contraparte: 'Comprador Mayorista',
-      rol: 'Comprador',
-      ultimoMensaje: 'Perfecto, enviaré el comprobante pronto.',
-      fecha: 'Ayer',
-      mensajes: [
-        { id: 201, sender: 'other', text: '¿Pueden ajustar el precio si llevo 1000 unidades?', time: 'Ayer, 3:00 PM' },
-        { id: 202, sender: 'me', text: 'Sí, podemos dejarlo en $12 c/u.', time: 'Ayer, 3:15 PM' },
-        { id: 203, sender: 'other', text: 'Perfecto, enviaré el comprobante pronto.', time: 'Ayer, 4:00 PM' },
-      ]
+  // Datos de conversaciones reales de Supabase
+  const [conversaciones, setConversaciones] = useState([]);
+
+  // 1. Cargar conversaciones en las que participa el usuario
+  const fetchConversaciones = async () => {
+    if (!userData?.id) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('conversaciones')
+        .select('*')
+        .or(`comprador_id.eq.${userData.id},vendedor_id.eq.${userData.id}`)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setConversaciones(data || []);
+    } catch (error) {
+      console.error('Error fetching conversaciones:', error.message);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  useEffect(() => {
+    fetchConversaciones();
+  }, [userData]);
+
+  // 2. Gestionar mensajes y Realtime de la conversación activa
+  useEffect(() => {
+    if (!conversacionActiva || vistaActiva !== 'chat') return;
+
+    // A. Cargar mensajes históricos
+    const fetchMensajes = async () => {
+      const { data, error } = await supabase
+        .from('mensajes')
+        .select('*')
+        .eq('conversacion_id', conversacionActiva.id)
+        .order('created_at', { ascending: true });
+
+      if (data) setMensajes(data);
+    };
+
+    fetchMensajes();
+
+    // B. Suscribirse a mensajes nuevos en TIEMPO REAL
+    const canal = supabase
+      .channel(`chat_${conversacionActiva.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'mensajes',
+        filter: `conversacion_id=eq.${conversacionActiva.id}`
+      }, (payload) => {
+        setMensajes((current) => [...current, payload.new]);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canal);
+    };
+  }, [conversacionActiva, vistaActiva]);
 
   const abrirConversacion = (conv) => {
     setConversacionActiva(conv);
+    setMensajes([]); // Limpiar previo mientras carga
     setVistaActiva('chat');
   };
 
-  const enviarMensaje = () => {
-    if (!nuevoMensaje.trim()) return;
+  const enviarMensaje = async () => {
+    if (!nuevoMensaje.trim() || !conversacionActiva) return;
     
-    // Verificación de límite de 300 caracteres
     if (nuevoMensaje.length > 300) {
       const msgError = 'El mensaje no puede superar los 300 caracteres.';
       Platform.OS === 'web' ? window.alert(msgError) : Alert.alert('Error', msgError);
       return;
     }
 
-    const nuevoMsgObj = {
-      id: Date.now(),
-      sender: 'me',
-      text: nuevoMensaje.trim(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
+    const contenido = nuevoMensaje.trim();
+    setNuevoMensaje(''); // Limpiar input rápido
 
-    // Actualizar la conversación activa en la lista
-    const conversacionesActualizadas = conversaciones.map(c => {
-      if (c.id === conversacionActiva.id) {
-        return {
-          ...c,
-          ultimoMensaje: nuevoMsgObj.text,
-          fecha: nuevoMsgObj.time,
-          mensajes: [...c.mensajes, nuevoMsgObj]
-        };
-      }
-      return c;
-    });
+    const { error } = await supabase
+      .from('mensajes')
+      .insert([{
+        conversacion_id: conversacionActiva.id,
+        remitente_id: userData.id,
+        contenido: contenido
+      }]);
 
-    setConversaciones(conversacionesActualizadas);
-    setConversacionActiva(conversacionesActualizadas.find(c => c.id === conversacionActiva.id));
-    setNuevoMensaje('');
+    if (error) {
+      console.error('Error enviando mensaje:', error.message);
+      Alert.alert('Error', 'No se pudo enviar el mensaje.');
+    }
   };
 
-  const simularAdjunto = () => {
-    const msg = 'Funcionalidad para adjuntar archivos en progreso.';
-    Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Adjuntos', msg);
-  };
-
-  const crearNuevaConversacion = () => {
-    if (!nuevoPedidoId.trim() || !nuevoDestinatario.trim()) {
-      const msgError = 'Por favor ingresa todos los campos requeridos.';
-      Platform.OS === 'web' ? window.alert(msgError) : Alert.alert('Campos incompletos', msgError);
+  const crearNuevaConversacion = async () => {
+    if (!nuevoPedidoId.trim() || !nuevoDestinatarioId.trim()) {
+      Alert.alert('Campos incompletos', 'Ingresa pedido y ID del destinatario.');
       return;
     }
 
-    const nuevaConv = {
-      id: Date.now(),
-      pedidoId: nuevoPedidoId.trim().toUpperCase(),
-      contraparte: nuevoDestinatario.trim(),
-      rol: 'Proveedor', // Rol simulado para esta demo
-      ultimoMensaje: 'Conversación iniciada',
-      fecha: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      mensajes: [] // Inicia sin mensajes
-    };
+    try {
+      const { data, error } = await supabase
+        .from('conversaciones')
+        .insert([{
+          pedido_id: nuevoPedidoId.trim().toUpperCase(),
+          comprador_id: userData.id, // El que inicia es el comprador en este ejemplo
+          vendedor_id: nuevoDestinatarioId.trim()
+        }])
+        .select()
+        .single();
 
-    setConversaciones([nuevaConv, ...conversaciones]);
-    
-    // Limpiar campos y cerrar modal
-    setNuevoPedidoId('');
-    setNuevoDestinatario('');
-    setModalNuevaConvVisible(false);
+      if (error) throw error;
 
-    // Abrir el chat automáticamente
-    abrirConversacion(nuevaConv);
+      setModalNuevaConvVisible(false);
+      setNuevoPedidoId('');
+      setNuevoDestinatarioId('');
+      
+      // Actualizar lista y abrir chat
+      fetchConversaciones();
+      abrirConversacion(data);
+    } catch (error) {
+      console.error('Error creando chat:', error.message);
+      Alert.alert('Error', 'No se pudo iniciar la conversación: ' + error.message);
+    }
+  };
+
+  const simularAdjunto = () => {
+    Alert.alert('Adjuntos', 'Funcionalidad de archivos en desarrollo.');
   };
 
   return (
@@ -170,7 +201,12 @@ export default function Mensajeria({ onBack, onNavigate }) {
 
       {/* CONTENEDOR PRINCIPAL BASADO EN LA IMAGEN */}
       <View style={styles.cardContainer}>
-        {vistaActiva === 'lista' ? (
+        {loading ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#0ea5e9" />
+            <Text style={{ color: '#94a3b8', marginTop: 10 }}>Cargando chats...</Text>
+          </View>
+        ) : vistaActiva === 'lista' ? (
           <>
             <View style={styles.cardHeader}>
               <Text style={styles.cardHeaderTitle}>Conversaciones</Text>
@@ -178,25 +214,33 @@ export default function Mensajeria({ onBack, onNavigate }) {
             <View style={styles.divider} />
 
             <ScrollView style={styles.listArea}>
-              {conversaciones.map((conv) => (
-                <TouchableOpacity 
-                  key={conv.id} 
-                  style={styles.convItem} 
-                  onPress={() => abrirConversacion(conv)}
-                >
-                  <View style={styles.convAvatar}>
-                    <Ionicons name="person" size={20} color="#64748b" />
-                  </View>
-                  <View style={styles.convBody}>
-                    <View style={styles.convTopRow}>
-                      <Text style={styles.convName}>{conv.contraparte}</Text>
-                      <Text style={styles.convDate}>{conv.fecha}</Text>
+              {conversaciones.length === 0 ? (
+                <Text style={{ color: '#64748b', textAlign: 'center', marginTop: 40 }}>
+                  No tienes conversaciones activas.
+                </Text>
+              ) : (
+                conversaciones.map((conv) => (
+                  <TouchableOpacity 
+                    key={conv.id} 
+                    style={styles.convItem} 
+                    onPress={() => abrirConversacion(conv)}
+                  >
+                    <View style={styles.convAvatar}>
+                      <Ionicons name="person" size={20} color="#64748b" />
                     </View>
-                    <Text style={styles.convOrder}>Pedido: {conv.pedidoId}</Text>
-                    <Text style={styles.convPreview} numberOfLines={1}>{conv.ultimoMensaje}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                    <View style={styles.convBody}>
+                      <View style={styles.convTopRow}>
+                        <Text style={styles.convName}>Chat de Pedido</Text>
+                        <Text style={styles.convDate}>
+                          {new Date(conv.created_at).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      <Text style={styles.convOrder}>Pedido: {conv.pedido_id}</Text>
+                      <Text style={styles.convPreview} numberOfLines={1}>Toca para ver los mensajes</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
             </ScrollView>
 
             {/* BOTÓN FLOTANTE NUEVA CONVERSACIÓN */}
@@ -223,13 +267,13 @@ export default function Mensajeria({ onBack, onNavigate }) {
                     </TouchableOpacity>
                   </View>
                   
-                  <Text style={styles.modalLabel}>Destinatario / Contraparte:</Text>
+                  <Text style={styles.modalLabel}>ID del Destinatario (UUID):</Text>
                   <TextInput
                     style={styles.modalInput}
-                    placeholder="Ej. Diseño XYZ o Cliente Final"
+                    placeholder="Pega el ID del usuario aquí"
                     placeholderTextColor="#64748b"
-                    value={nuevoDestinatario}
-                    onChangeText={setNuevoDestinatario}
+                    value={nuevoDestinatarioId}
+                    onChangeText={setNuevoDestinatarioId}
                   />
 
                   <Text style={styles.modalLabel}>Asociar a Número de Pedido:</Text>
@@ -260,24 +304,26 @@ export default function Mensajeria({ onBack, onNavigate }) {
                 <Ionicons name="chevron-back" size={24} color="#0ea5e9" />
               </TouchableOpacity>
               <View>
-                <Text style={styles.chatHeaderTitle}>{conversacionActiva?.contraparte}</Text>
-                <Text style={styles.chatHeaderSubtitle}>Pedido: {conversacionActiva?.pedidoId} • Privado</Text>
+                <Text style={styles.chatHeaderTitle}>Chat de Pedido</Text>
+                <Text style={styles.chatHeaderSubtitle}>Pedido: {conversacionActiva?.pedido_id} • Privado</Text>
               </View>
             </View>
             <View style={styles.divider} />
 
             <ScrollView style={styles.messagesArea} contentContainerStyle={{ paddingBottom: 20 }}>
               <Text style={styles.securityNotice}>Solo las partes involucradas en este pedido tienen acceso a esta conversación.</Text>
-              {conversacionActiva?.mensajes.map((msg) => (
+              {mensajes.map((msg) => (
                 <View 
                   key={msg.id} 
                   style={[
                     styles.messageBubble, 
-                    msg.sender === 'me' ? styles.messageMine : styles.messageTheirs
+                    msg.remitente_id === userData?.id ? styles.messageMine : styles.messageTheirs
                   ]}
                 >
-                  <Text style={styles.messageText}>{msg.text}</Text>
-                  <Text style={styles.messageTime}>{msg.time}</Text>
+                  <Text style={styles.messageText}>{msg.contenido}</Text>
+                  <Text style={styles.messageTime}>
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
                 </View>
               ))}
             </ScrollView>

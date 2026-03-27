@@ -154,7 +154,13 @@ export default function App() {
 
   // Pantalla de Mensajeria
   if (currentScreen === 'mensajeria') {
-    return <Mensajeria onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
+    return (
+      <Mensajeria 
+        onBack={() => setCurrentScreen('dashboard')} 
+        onNavigate={setCurrentScreen} 
+        userData={userData}
+      />
+    );
   }
 
   // Pantalla de Inventario
