@@ -190,18 +190,24 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
   };
 
   const eliminarConversacion = (conv) => {
-    Alert.alert(
-      "Eliminar conversación",
-      "¿Estás seguro de que quieres eliminar esta conversación? Esto solo la borrará para ti.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        { 
-          text: "Eliminar", 
-          style: "destructive",
-          onPress: () => ejecutarEliminacion(conv)
-        }
-      ]
-    );
+    const msg = "¿Estás seguro de que quieres eliminar esta conversación? Esto solo la borrará para ti.";
+    if (Platform.OS === 'web') {
+      const confirmada = window.confirm(msg);
+      if (confirmada) ejecutarEliminacion(conv);
+    } else {
+      Alert.alert(
+        "Eliminar conversación",
+        msg,
+        [
+          { text: "Cancelar", style: "cancel" },
+          { 
+            text: "Eliminar", 
+            style: "destructive",
+            onPress: () => ejecutarEliminacion(conv)
+          }
+        ]
+      );
+    }
   };
 
   const ejecutarEliminacion = async (conv) => {
@@ -294,33 +300,34 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
                 </Text>
               ) : (
                 conversaciones.map((conv) => (
-                  <TouchableOpacity 
-                    key={conv.id} 
-                    style={styles.convItem} 
-                    onPress={() => abrirConversacion(conv)}
-                  >
-                    <View style={styles.convAvatar}>
-                      <Ionicons name="person" size={20} color="#64748b" />
-                    </View>
-                    <View style={styles.convBody}>
-                      <View style={styles.convTopRow}>
-                        <Text style={styles.convName}>Chat de Pedido</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View key={conv.id} style={styles.convItem}>
+                    <TouchableOpacity 
+                      style={styles.convBodyInner} 
+                      onPress={() => abrirConversacion(conv)}
+                    >
+                      <View style={styles.convAvatar}>
+                        <Ionicons name="person" size={20} color="#64748b" />
+                      </View>
+                      <View style={styles.convBody}>
+                        <View style={styles.convTopRow}>
+                          <Text style={styles.convName}>Chat de Pedido</Text>
                           <Text style={styles.convDate}>
                             {new Date(conv.created_at).toLocaleDateString()}
                           </Text>
-                          <TouchableOpacity 
-                            style={{ marginLeft: 10, padding: 5 }}
-                            onPress={() => eliminarConversacion(conv)}
-                          >
-                            <Ionicons name="ellipsis-vertical" size={18} color="#64748b" />
-                          </TouchableOpacity>
                         </View>
+                        <Text style={styles.convOrder}>{conv.pedido_id ? `Pedido: ${conv.pedido_id}` : 'Chat Directo'}</Text>
+                        <Text style={styles.convPreview} numberOfLines={1}>Toca para ver los mensajes</Text>
                       </View>
-                      <Text style={styles.convOrder}>{conv.pedido_id ? `Pedido: ${conv.pedido_id}` : 'Chat Directo'}</Text>
-                      <Text style={styles.convPreview} numberOfLines={1}>Toca para ver los mensajes</Text>
-                    </View>
-                  </TouchableOpacity>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.convDots}
+                      onPress={() => eliminarConversacion(conv)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons name="ellipsis-vertical" size={20} color="#64748b" />
+                    </TouchableOpacity>
+                  </View>
                 ))
               )}
             </ScrollView>
@@ -513,10 +520,21 @@ const styles = StyleSheet.create({
   },
   convItem: {
     flexDirection: 'row',
-    paddingVertical: 15,
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#1e293b',
+  },
+  convBodyInner: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+  },
+  convDots: {
+    padding: 10,
+    marginLeft: 5,
+    zIndex: 10,
   },
   convAvatar: {
     width: 46,
