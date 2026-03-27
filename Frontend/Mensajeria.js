@@ -40,10 +40,11 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
     if (!userData?.auth_user_id) return;
     setLoading(true);
     try {
+      // Filtrar chats no borrados por el usuario actual
       const { data, error } = await supabase
         .from('conversaciones')
         .select('*')
-        .or(`comprador_id.eq.${userData.auth_user_id},vendedor_id.eq.${userData.auth_user_id}`)
+        .or(`and(comprador_id.eq.${userData.auth_user_id},borrado_comprador.eq.false),and(vendedor_id.eq.${userData.auth_user_id},borrado_vendedor.eq.false)`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -188,6 +189,47 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
     }
   };
 
+  const eliminarConversacion = (conv) => {
+    Alert.alert(
+      "Eliminar conversación",
+      "¿Estás seguro de que quieres eliminar esta conversación? Esto solo la borrará para ti.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Eliminar", 
+          style: "destructive",
+          onPress: () => ejecutarEliminacion(conv)
+        }
+      ]
+    );
+  };
+
+  const ejecutarEliminacion = async (conv) => {
+    try {
+      setLoading(true);
+      const esComprador = conv.comprador_id === userData.auth_user_id;
+      const columnaBorrado = esComprador ? 'borrado_comprador' : 'borrado_vendedor';
+
+      const { error } = await supabase
+        .from('conversaciones')
+        .update({ [columnaBorrado]: true })
+        .eq('id', conv.id);
+
+      if (error) throw error;
+
+      fetchConversaciones(); // Recargar lista
+      if (conversacionActiva?.id === conv.id) {
+        setVistaActiva('lista');
+        setConversacionActiva(null);
+      }
+    } catch (error) {
+      console.error('Error eliminando conversación:', error.message);
+      Alert.alert('Error', 'No se pudo eliminar la conversación.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const simularAdjunto = () => {
     Alert.alert('Adjuntos', 'Funcionalidad de archivos en desarrollo.');
   };
@@ -263,9 +305,17 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
                     <View style={styles.convBody}>
                       <View style={styles.convTopRow}>
                         <Text style={styles.convName}>Chat de Pedido</Text>
-                        <Text style={styles.convDate}>
-                          {new Date(conv.created_at).toLocaleDateString()}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={styles.convDate}>
+                            {new Date(conv.created_at).toLocaleDateString()}
+                          </Text>
+                          <TouchableOpacity 
+                            style={{ marginLeft: 10, padding: 5 }}
+                            onPress={() => eliminarConversacion(conv)}
+                          >
+                            <Ionicons name="ellipsis-vertical" size={18} color="#64748b" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                       <Text style={styles.convOrder}>{conv.pedido_id ? `Pedido: ${conv.pedido_id}` : 'Chat Directo'}</Text>
                       <Text style={styles.convPreview} numberOfLines={1}>Toca para ver los mensajes</Text>
