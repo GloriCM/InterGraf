@@ -124,6 +124,15 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
     if (error) {
       console.error('Error enviando mensaje:', error.message);
       Alert.alert('Error', 'No se pudo enviar el mensaje.');
+    } else {
+      // Re-activar la conversación para el receptor si la tenía borrada
+      const esComprador = conversacionActiva.comprador_id === userData.auth_user_id;
+      const columnaReceptor = esComprador ? 'borrado_vendedor' : 'borrado_comprador';
+      
+      await supabase
+        .from('conversaciones')
+        .update({ [columnaReceptor]: false })
+        .eq('id', conversacionActiva.id);
     }
   };
 
