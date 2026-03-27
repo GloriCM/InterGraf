@@ -37,13 +37,13 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
 
   // 1. Cargar conversaciones en las que participa el usuario
   const fetchConversaciones = async () => {
-    if (!userData?.id) return;
+    if (!userData?.auth_user_id) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('conversaciones')
         .select('*')
-        .or(`comprador_id.eq.${userData.id},vendedor_id.eq.${userData.id}`)
+        .or(`comprador_id.eq.${userData.auth_user_id},vendedor_id.eq.${userData.auth_user_id}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -116,7 +116,7 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
       .from('mensajes')
       .insert([{
         conversacion_id: conversacionActiva.id,
-        remitente_id: userData.id,
+        remitente_id: userData.auth_user_id,
         contenido: contenido
       }]);
 
@@ -139,7 +139,7 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
         .from('Usuarios_Registrados')
         .select('auth_user_id, razon_social')
         .ilike('razon_social', `%${texto}%`)
-        .neq('auth_user_id', userData?.id) // No buscarse a sí mismo
+        .neq('auth_user_id', userData?.auth_user_id) // No buscarse a sí mismo
         .limit(10);
 
       if (error) throw error;
@@ -167,7 +167,7 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
       const { data, error } = await supabase
         .from('conversaciones')
         .insert([{
-          comprador_id: userData.id,
+          comprador_id: userData.auth_user_id,
           vendedor_id: destinatarioSeleccionado.auth_user_id,
           pedido_id: null
         }])
@@ -363,7 +363,7 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
                   key={msg.id} 
                   style={[
                     styles.messageBubble, 
-                    msg.remitente_id === userData?.id ? styles.messageMine : styles.messageTheirs
+                    msg.remitente_id === userData?.auth_user_id ? styles.messageMine : styles.messageTheirs
                   ]}
                 >
                   <Text style={styles.messageText}>{msg.contenido}</Text>
