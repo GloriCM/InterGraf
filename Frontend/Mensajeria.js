@@ -27,7 +27,6 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
 
   // Estados para la nueva conversación
   const [modalNuevaConvVisible, setModalNuevaConvVisible] = useState(false);
-  const [nuevoPedidoId, setNuevoPedidoId] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [resultadosBusqueda, setResultadosBusqueda] = useState([]);
   const [buscando, setBuscando] = useState(false);
@@ -159,8 +158,8 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
   };
 
   const crearNuevaConversacion = async () => {
-    if (!nuevoPedidoId.trim() || !destinatarioSeleccionado) {
-      Alert.alert('Campos incompletos', 'Ingresa pedido y selecciona un destinatario.');
+    if (!destinatarioSeleccionado) {
+      Alert.alert('Campos incompletos', 'Selecciona un destinatario.');
       return;
     }
 
@@ -168,9 +167,9 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
       const { data, error } = await supabase
         .from('conversaciones')
         .insert([{
-          pedido_id: nuevoPedidoId.trim().toUpperCase(),
           comprador_id: userData.id,
-          vendedor_id: destinatarioSeleccionado.auth_user_id
+          vendedor_id: destinatarioSeleccionado.auth_user_id,
+          pedido_id: null
         }])
         .select()
         .single();
@@ -178,7 +177,6 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
       if (error) throw error;
 
       setModalNuevaConvVisible(false);
-      setNuevoPedidoId('');
       setBusqueda('');
       setDestinatarioSeleccionado(null);
       
@@ -269,7 +267,7 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
                           {new Date(conv.created_at).toLocaleDateString()}
                         </Text>
                       </View>
-                      <Text style={styles.convOrder}>Pedido: {conv.pedido_id}</Text>
+                      <Text style={styles.convOrder}>{conv.pedido_id ? `Pedido: ${conv.pedido_id}` : 'Chat Directo'}</Text>
                       <Text style={styles.convPreview} numberOfLines={1}>Toca para ver los mensajes</Text>
                     </View>
                   </TouchableOpacity>
@@ -334,18 +332,8 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
                     </View>
                   )}
 
-                  <Text style={styles.modalLabel}>Asociar a Número de Pedido:</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    placeholder="Ej. PED-2055"
-                    placeholderTextColor="#64748b"
-                    value={nuevoPedidoId}
-                    onChangeText={setNuevoPedidoId}
-                    autoCapitalize="characters"
-                  />
-
                   <TouchableOpacity style={styles.btnCrearConv} onPress={crearNuevaConversacion}>
-                    <Text style={styles.btnCrearConvText}>Crear Chat</Text>
+                    <Text style={styles.btnCrearConvText}>Abrir Chat</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -363,7 +351,7 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
               </TouchableOpacity>
               <View>
                 <Text style={styles.chatHeaderTitle}>Chat de Pedido</Text>
-                <Text style={styles.chatHeaderSubtitle}>Pedido: {conversacionActiva?.pedido_id} • Privado</Text>
+                <Text style={styles.chatHeaderSubtitle}>{conversacionActiva?.pedido_id ? `Pedido: ${conversacionActiva.pedido_id}` : 'Conversación Privada'}</Text>
               </View>
             </View>
             <View style={styles.divider} />
