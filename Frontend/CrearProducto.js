@@ -19,14 +19,9 @@ import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from './supabase';
 
-<<<<<<< HEAD
 export default function CrearProducto({ onBack, onNavigate, producto, userData }) {
   // Determinar si estamos en modo edición
   const esEdicion = !!producto;
-
-=======
-export default function CrearProducto({ userData, onBack, onNavigate }) {
->>>>>>> 1622f07803b49893c76c41b5668510acc994ef17
   // --- Estados del Formulario ---
   const [nombre, setNombre] = useState(producto?.nombre || '');
   const [precio, setPrecio] = useState(producto?.precio?.toString() || '');
@@ -40,13 +35,8 @@ export default function CrearProducto({ userData, onBack, onNavigate }) {
   const [tiempoEstimado, setTiempoEstimado] = useState(producto?.tiempoEstimado || '');
 
   // Imágenes
-<<<<<<< HEAD
   const [imagenes, setImagenes] = useState(producto?.imagenes || []);
-=======
-  const [imagenes, setImagenes] = useState([]);
   const [loading, setLoading] = useState(false);
-
->>>>>>> 1622f07803b49893c76c41b5668510acc994ef17
 
   // Efecto para verificar propiedad en modo edición
   useEffect(() => {
@@ -88,11 +78,7 @@ export default function CrearProducto({ userData, onBack, onNavigate }) {
     }
   };
 
-<<<<<<< HEAD
-  const handleGuardar = () => {
-=======
   const handleLanzarAlMercado = async () => {
->>>>>>> 1622f07803b49893c76c41b5668510acc994ef17
     // 1. Nombre obligatorio y máximo 150 caracteres
     if (!nombre || nombre.trim() === '') {
       return mostrarError('El nombre del producto es obligatorio.');
@@ -139,47 +125,22 @@ export default function CrearProducto({ userData, onBack, onNavigate }) {
       return mostrarError('Por favor sube al menos una imagen de alta calidad.');
     }
 
-<<<<<<< HEAD
-    // --- ÉXITO ---
-    const productoDatos = {
-      ...(esEdicion ? { id: producto.id } : {}),
-      nombre,
-      precio: precioUnitarioNum,
-      stock: stockNum,
-      descripcionTecnica,
-      categoria,
-      preciosVolumen,
-      cantidadMinima: cantidadMinNum,
-      tiempoEstimado,
-      imagenes,
-      empresa_id: userData?.id
-    };
-
-    console.log(esEdicion ? "Producto a actualizar:" : "Producto a guardar:", productoDatos);
-
-    const tituloExito = esEdicion ? '¡Producto Actualizado!' : '¡Producto Creado!';
-    const mensajeExito = esEdicion 
-      ? 'Los cambios se han guardado exitosamente.' 
-      : 'El producto ha sido lanzado al mercado exitosamente.';
-
-    if (Platform.OS === 'web') {
-      window.alert(`${tituloExito}\n\n${mensajeExito}`);
-    } else {
-      Alert.alert(tituloExito, mensajeExito);
-    }
-
-    // Volver al inventario si es edición, o dashboard si es creación
-    onBack();
-=======
     setLoading(true);
 
     try {
-      // 1. Subir imágenes
+      // 1. Subir imágenes (solo si son nuevas URIs locales)
       const uploadedImageUrls = [];
       const cleanName = nombre.replace(/[^a-zA-Z0-9]/g, '');
       
       for (let i = 0; i < imagenes.length; i++) {
         const logoUri = imagenes[i];
+        
+        // Si ya es una URL de Supabase (comienza con http), la mantenemos tal cual
+        if (logoUri.startsWith('http')) {
+          uploadedImageUrls.push(logoUri);
+          continue;
+        }
+
         let base64 = "";
         let ext = "jpeg";
 
@@ -209,9 +170,9 @@ export default function CrearProducto({ userData, onBack, onNavigate }) {
         uploadedImageUrls.push(publicUrlData.publicUrl);
       }
 
-      // 2. Insertar en Base de Datos
+      // 2. Insertar o Actualizar en Base de Datos
       const productoDatos = {
-        usuario_id: userData?.id || null, // Vínculo con el vendedor (ID numérico o UUID en Usuarios_Registrados)
+        usuario_id: userData?.id || null,
         nombre,
         precio: precioUnitarioNum,
         stock: stockNum,
@@ -220,44 +181,63 @@ export default function CrearProducto({ userData, onBack, onNavigate }) {
         precios_volumen: preciosVolumen,
         cantidad_minima: cantidadMinNum,
         tiempo_estimado: tiempoEstimado,
-        imagenes: uploadedImageUrls // Soporte nativo de un array en PostgreSQL Text[] o JSONB
+        imagenes: uploadedImageUrls
       };
 
-      const { data, error } = await supabase
-        .from('productos')
-        .insert([productoDatos])
-        .select();
+      let query;
+      if (esEdicion) {
+        query = supabase
+          .from('productos')
+          .update(productoDatos)
+          .eq('id', producto.id);
+      } else {
+        query = supabase
+          .from('productos')
+          .insert([productoDatos]);
+      }
+
+      const { error } = await query.select();
 
       if (error) throw error;
 
       setLoading(false);
+      
+      const tituloExito = esEdicion ? '¡Producto Actualizado!' : '¡Producto Creado!';
+      const mensajeExito = esEdicion 
+        ? 'Los cambios se han guardado exitosamente.' 
+        : 'El producto ha sido lanzado al mercado exitosamente.';
+
       if (Platform.OS === 'web') {
-        window.alert("¡Producto Creado!\n\nEl producto ha sido lanzado al mercado exitosamente.");
+        window.alert(`${tituloExito}\n\n${mensajeExito}`);
       } else {
-        Alert.alert('¡Producto Creado!', 'El producto ha sido lanzado al mercado exitosamente.');
+        Alert.alert(tituloExito, mensajeExito);
       }
       
-      // Limpiar formulario localmente
-      setNombre('');
-      setPrecio('');
-      setStock('');
-      setDescripcionTecnica('');
-      setCategoria('');
-      setPreciosVolumen('');
-      setCantidadMinima('1');
-      setTiempoEstimado('');
-      setImagenes([]);
+      if (!esEdicion) {
+        // Limpiar formulario si es creación
+        setNombre('');
+        setPrecio('');
+        setStock('');
+        setDescripcionTecnica('');
+        setCategoria('');
+        setPreciosVolumen('');
+        setCantidadMinima('1');
+        setTiempoEstimado('');
+        setImagenes([]);
+      }
+
+      // Volver atrás
+      onBack();
 
     } catch (err) {
       setLoading(false);
       console.error("Error guardando producto:", err);
       if (Platform.OS === 'web') {
-        window.alert("Error creando el producto: " + err.message);
+        window.alert("Error guardando el producto: " + err.message);
       } else {
-        Alert.alert("Error", "Error creando el producto: " + err.message);
+        Alert.alert("Error", "Error guardando el producto: " + err.message);
       }
     }
->>>>>>> 1622f07803b49893c76c41b5668510acc994ef17
   };
 
   return (
@@ -286,6 +266,10 @@ export default function CrearProducto({ userData, onBack, onNavigate }) {
 
           <TouchableOpacity onPress={() => onNavigate && onNavigate('perfil')}>
             <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('mensajeria')}>
+            <Ionicons name="chatbubble-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => onNavigate && onNavigate('login')}>
@@ -440,10 +424,6 @@ export default function CrearProducto({ userData, onBack, onNavigate }) {
           </View>
 
           {/* Botón Principal */}
-<<<<<<< HEAD
-          <TouchableOpacity style={styles.lanzarBtn} onPress={handleGuardar}>
-            <Text style={styles.lanzarBtnText}>{esEdicion ? 'Guardar Cambios' : 'Lanzar al mercado'}</Text>
-=======
           <TouchableOpacity 
             style={[styles.lanzarBtn, loading && { opacity: 0.7 }]} 
             onPress={handleLanzarAlMercado}
@@ -452,9 +432,10 @@ export default function CrearProducto({ userData, onBack, onNavigate }) {
             {loading ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text style={styles.lanzarBtnText}>Lanzar al mercado</Text>
+              <Text style={styles.lanzarBtnText}>
+                {esEdicion ? 'Guardar Cambios' : 'Lanzar al mercado'}
+              </Text>
             )}
->>>>>>> 1622f07803b49893c76c41b5668510acc994ef17
           </TouchableOpacity>
 
         </View>

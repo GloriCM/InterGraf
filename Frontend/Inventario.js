@@ -16,18 +16,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
 
-<<<<<<< HEAD
-export default function Inventario({ onBack, onNavigate, userData }) {
-  // Datos simulados iniciales del inventario
-  // id: identificador único del producto
-  // empresa_id: id de la empresa propietaria (para validar permisos de edición)
-  const [inventario, setInventario] = useState([
-    { id: 1, empresa_id: userData?.id || 1, identificador: 'Afiches A3', sku: 'AFI-001', stock: 150, minimo: 50 },
-    { id: 2, empresa_id: userData?.id || 1, identificador: 'Tarjetas de Presentación', sku: 'TAR-002', stock: 500, minimo: 200 },
-    { id: 3, empresa_id: 999, identificador: 'Lonas Publicitarias (Ajeno)', sku: 'LON-003', stock: 15, minimo: 20 },
-    { id: 4, empresa_id: userData?.id || 1, identificador: 'Agendas Corporativas', sku: 'AGE-004', stock: 0, minimo: 10 },
-  ]);
-=======
 export default function Inventario({ userData, onBack, onNavigate }) {
   // Datos provenientes de la base de datos
   const [inventario, setInventario] = useState([]);
@@ -76,7 +64,6 @@ export default function Inventario({ userData, onBack, onNavigate }) {
       setLoading(false);
     }
   }, [userData]);
->>>>>>> 1622f07803b49893c76c41b5668510acc994ef17
 
   // Historial de movimientos
   const [historial, setHistorial] = useState([]);
@@ -215,6 +202,10 @@ export default function Inventario({ userData, onBack, onNavigate }) {
 
           <TouchableOpacity onPress={() => onNavigate && onNavigate('perfil')}>
             <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('mensajeria')}>
+            <Ionicons name="chatbubble-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => onNavigate && onNavigate('login')}>

@@ -9,6 +9,7 @@ import Registro from './Registro';
 import RecuperarPassword from './RecuperarPassword';
 import RestablecerPassword from './RestablecerPassword';
 import Perfil from './Perfil';
+import Mensajeria from './Mensajeria';
 import { useEffect } from 'react';
 
 export default function App() {
@@ -151,9 +152,13 @@ export default function App() {
     );
   }
 
+  // Pantalla de Mensajeria
+  if (currentScreen === 'mensajeria') {
+    return <Mensajeria onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
+  }
+
   // Pantalla de Inventario
   if (currentScreen === 'inventario') {
-<<<<<<< HEAD
     return (
       <Inventario 
         onBack={() => setCurrentScreen('dashboard')} 
@@ -164,8 +169,8 @@ export default function App() {
           }
           setCurrentScreen(screen);
         }} 
-=======
-    return <Inventario userData={userData} onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
+      />
+    );
   }
 
   // Pantalla de Perfil
@@ -176,7 +181,6 @@ export default function App() {
         onUpdate={setUserData} 
         onBack={() => setCurrentScreen('dashboard')} 
         onNavigate={setCurrentScreen} 
->>>>>>> 1622f07803b49893c76c41b5668510acc994ef17
       />
     );
   }
