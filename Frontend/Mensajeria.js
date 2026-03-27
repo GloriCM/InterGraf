@@ -28,7 +28,10 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
   // Estados para la nueva conversación
   const [modalNuevaConvVisible, setModalNuevaConvVisible] = useState(false);
   const [nuevoPedidoId, setNuevoPedidoId] = useState('');
-  const [nuevoDestinatarioId, setNuevoDestinatarioId] = useState(''); // UUID del otro usuario
+  const [busqueda, setBusqueda] = useState('');
+  const [resultadosBusqueda, setResultadosBusqueda] = useState([]);
+  const [buscando, setBuscando] = useState(false);
+  const [destinatarioSeleccionado, setDestinatarioSeleccionado] = useState(null);
 
   // Datos de conversaciones reales de Supabase
   const [conversaciones, setConversaciones] = useState([]);
@@ -124,9 +127,40 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
     }
   };
 
+  const buscarUsuarios = async (texto) => {
+    setBusqueda(texto);
+    if (texto.length < 3) {
+      setResultadosBusqueda([]);
+      return;
+    }
+
+    setBuscando(true);
+    try {
+      const { data, error } = await supabase
+        .from('Usuarios_Registrados')
+        .select('auth_user_id, razon_social')
+        .ilike('razon_social', `%${texto}%`)
+        .neq('auth_user_id', userData?.id) // No buscarse a sí mismo
+        .limit(10);
+
+      if (error) throw error;
+      setResultadosBusqueda(data || []);
+    } catch (error) {
+      console.error('Error buscando usuarios:', error.message);
+    } finally {
+      setBuscando(false);
+    }
+  };
+
+  const seleccionarDestinatario = (user) => {
+    setDestinatarioSeleccionado(user);
+    setResultadosBusqueda([]);
+    setBusqueda(user.razon_social);
+  };
+
   const crearNuevaConversacion = async () => {
-    if (!nuevoPedidoId.trim() || !nuevoDestinatarioId.trim()) {
-      Alert.alert('Campos incompletos', 'Ingresa pedido y ID del destinatario.');
+    if (!nuevoPedidoId.trim() || !destinatarioSeleccionado) {
+      Alert.alert('Campos incompletos', 'Ingresa pedido y selecciona un destinatario.');
       return;
     }
 
@@ -135,8 +169,8 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
         .from('conversaciones')
         .insert([{
           pedido_id: nuevoPedidoId.trim().toUpperCase(),
-          comprador_id: userData.id, // El que inicia es el comprador en este ejemplo
-          vendedor_id: nuevoDestinatarioId.trim()
+          comprador_id: userData.id,
+          vendedor_id: destinatarioSeleccionado.auth_user_id
         }])
         .select()
         .single();
@@ -145,14 +179,14 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
 
       setModalNuevaConvVisible(false);
       setNuevoPedidoId('');
-      setNuevoDestinatarioId('');
+      setBusqueda('');
+      setDestinatarioSeleccionado(null);
       
-      // Actualizar lista y abrir chat
       fetchConversaciones();
       abrirConversacion(data);
     } catch (error) {
       console.error('Error creando chat:', error.message);
-      Alert.alert('Error', 'No se pudo iniciar la conversación: ' + error.message);
+      Alert.alert('Error', 'No se pudo iniciar la conversación.');
     }
   };
 
@@ -267,14 +301,38 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
                     </TouchableOpacity>
                   </View>
                   
-                  <Text style={styles.modalLabel}>ID del Destinatario (UUID):</Text>
+                  <Text style={styles.modalLabel}>Buscar Empresa/Usuario:</Text>
                   <TextInput
                     style={styles.modalInput}
-                    placeholder="Pega el ID del usuario aquí"
+                    placeholder="Escribe al menos 3 letras..."
                     placeholderTextColor="#64748b"
-                    value={nuevoDestinatarioId}
-                    onChangeText={setNuevoDestinatarioId}
+                    value={busqueda}
+                    onChangeText={buscarUsuarios}
                   />
+
+                  {buscando && <ActivityIndicator size="small" color="#0ea5e9" style={{ marginBottom: 10 }} />}
+
+                  {resultadosBusqueda.length > 0 && (
+                    <View style={styles.searchResultsContainer}>
+                      {resultadosBusqueda.map((user) => (
+                        <TouchableOpacity 
+                          key={user.auth_user_id} 
+                          style={styles.searchResultItem}
+                          onPress={() => seleccionarDestinatario(user)}
+                        >
+                          <Ionicons name="person-outline" size={16} color="#94a3b8" />
+                          <Text style={styles.searchResultText}>{user.razon_social}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                  
+                  {destinatarioSeleccionado && (
+                    <View style={styles.selectedUserBadge}>
+                      <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                      <Text style={styles.selectedUserText}>Para: {destinatarioSeleccionado.razon_social}</Text>
+                    </View>
+                  )}
 
                   <Text style={styles.modalLabel}>Asociar a Número de Pedido:</Text>
                   <TextInput
@@ -623,5 +681,40 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: 'bold',
+  },
+  searchResultsContainer: {
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    marginBottom: 15,
+    maxHeight: 150,
+    overflow: 'hidden',
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+  },
+  searchResultText: {
+    color: '#ffffff',
+    fontSize: 14,
+    marginLeft: 10,
+  },
+  selectedUserBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  selectedUserText: {
+    color: '#10b981',
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
