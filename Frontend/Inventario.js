@@ -188,7 +188,7 @@ export default function Inventario({ userData, onBack, onNavigate }) {
         `¿Estás seguro de que deseas eliminar "${producto.identificador}"?`,
         [
           { text: "Cancelar", style: "cancel" },
-          { text: "Eliminar", style: "destructive", onPress: () => ejecutarEliminacion(producto.id) }
+          { text: "Borrar", style: "destructive", onPress: () => ejecutarEliminacion(producto.id) }
         ]
       );
     }
@@ -312,24 +312,14 @@ export default function Inventario({ userData, onBack, onNavigate }) {
                     <Text style={styles.btnAccionText}>Modificar Stock</Text>
                   </TouchableOpacity>
 
-                  {/* Editar Info (Propietario) o Eliminar (No propietario o ambos) */}
-                  {item.usuario_id === userData?.id ? (
-                    <TouchableOpacity 
-                      style={[styles.btnAccion, { backgroundColor: '#0ea5e9', flex: 1.5 }]} 
-                      onPress={() => onNavigate('editar_producto', item)}
-                    >
-                      <Ionicons name="create-outline" size={16} color="#ffffff" />
-                      <Text style={[styles.btnAccionText, { color: '#ffffff' }]}>Editar Producto</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity 
-                      style={[styles.btnAccion, { backgroundColor: '#ef4444', flex: 1.5 }]} 
-                      onPress={() => confirmEliminar(item)}
-                    >
-                      <Ionicons name="trash-outline" size={16} color="#ffffff" />
-                      <Text style={[styles.btnAccionText, { color: '#ffffff' }]}>Eliminar</Text>
-                    </TouchableOpacity>
-                  )}
+                  {/* Botón Borrar (Para todos) */}
+                  <TouchableOpacity 
+                    style={[styles.btnAccion, { backgroundColor: '#ef4444', flex: 1.5 }]} 
+                    onPress={() => confirmEliminar(item)}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#ffffff" />
+                    <Text style={[styles.btnAccionText, { color: '#ffffff' }]}>Borrar</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             );
