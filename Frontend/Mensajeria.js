@@ -58,6 +58,26 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
 
   useEffect(() => {
     fetchConversaciones();
+
+    // Suscribirse a cambios en la tabla de conversaciones (para nuevos chats o re-activaciones)
+    const canalConv = supabase
+      .channel('public:conversaciones')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'conversaciones'
+      }, (payload) => {
+        // Si el cambio involucra al usuario actual, recargar lista
+        const conv = payload.new || payload.old;
+        if (userData?.auth_user_id && (conv.comprador_id === userData.auth_user_id || conv.vendedor_id === userData.auth_user_id)) {
+          fetchConversaciones();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canalConv);
+    };
   }, [userData]);
 
   // 2. Gestionar mensajes y Realtime de la conversación activa
