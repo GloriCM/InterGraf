@@ -66,11 +66,20 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
 
     // A. Cargar mensajes históricos
     const fetchMensajes = async () => {
-      const { data, error } = await supabase
+      // Determinar si el usuario tiene una fecha de borrado para esta conv
+      const esComprador = conversacionActiva.comprador_id === userData.auth_user_id;
+      const fechaBorrado = esComprador ? conversacionActiva.fecha_borrado_comprador : conversacionActiva.fecha_borrado_vendedor;
+
+      let query = supabase
         .from('mensajes')
         .select('*')
-        .eq('conversacion_id', conversacionActiva.id)
-        .order('created_at', { ascending: true });
+        .eq('conversacion_id', conversacionActiva.id);
+      
+      if (fechaBorrado) {
+        query = query.gt('created_at', fechaBorrado);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: true });
 
       if (data) setMensajes(data);
     };
@@ -224,10 +233,14 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
       setLoading(true);
       const esComprador = conv.comprador_id === userData.auth_user_id;
       const columnaBorrado = esComprador ? 'borrado_comprador' : 'borrado_vendedor';
+      const columnaFecha = esComprador ? 'fecha_borrado_comprador' : 'fecha_borrado_vendedor';
 
       const { error } = await supabase
         .from('conversaciones')
-        .update({ [columnaBorrado]: true })
+        .update({ 
+          [columnaBorrado]: true,
+          [columnaFecha]: new Date().toISOString() 
+        })
         .eq('id', conv.id);
 
       if (error) throw error;
