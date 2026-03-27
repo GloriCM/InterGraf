@@ -43,6 +43,7 @@ export default function Inventario({ userData, onBack, onNavigate }) {
             sku: prod.id ? prod.id.substring(0, 8).toUpperCase() : 'N/A', // Generar SKU visual corto a partir del UUID
             stock: prod.stock,
             minimo: prod.cantidad_minima || 10,
+            usuario_id: prod.usuario_id, // Identificador del dueño
           }));
           setInventario(productosFormateados);
         }
@@ -174,6 +175,53 @@ export default function Inventario({ userData, onBack, onNavigate }) {
     }
   };
 
+  // --- Función para Eliminar Producto ---
+  const confirmEliminar = (producto) => {
+    if (Platform.OS === 'web') {
+      const confirmada = window.confirm(`¿Estás seguro de que deseas eliminar "${producto.identificador}"?`);
+      if (confirmada) {
+        ejecutarEliminacion(producto.id);
+      }
+    } else {
+      Alert.alert(
+        "Eliminar Producto",
+        `¿Estás seguro de que deseas eliminar "${producto.identificador}"?`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Eliminar", style: "destructive", onPress: () => ejecutarEliminacion(producto.id) }
+        ]
+      );
+    }
+  };
+
+  const ejecutarEliminacion = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('productos')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Actualizar estado local
+      setInventario(inventario.filter(p => p.id !== id));
+      
+      if (Platform.OS === 'web') {
+        window.alert("Producto eliminado exitosamente.");
+      } else {
+        Alert.alert("Éxito", "Producto eliminado exitosamente.");
+      }
+    } catch (error) {
+      console.error("Error eliminando producto:", error.message);
+      const msg = "No se pudo eliminar el producto: " + error.message;
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert("Error", msg);
+      }
+    }
+  };
+
   // --- Renderizado ---
 
   return (
@@ -261,11 +309,11 @@ export default function Inventario({ userData, onBack, onNavigate }) {
                     onPress={() => abrirModalDeAjuste(item)}
                   >
                     <Ionicons name="stats-chart-outline" size={16} color="#0f172a" />
-                    <Text style={styles.btnAccionText}>Stock</Text>
+                    <Text style={styles.btnAccionText}>Modificar Stock</Text>
                   </TouchableOpacity>
 
-                  {/* Editar Info (Restringido a la empresa propietaria) */}
-                  {item.empresa_id === userData?.id ? (
+                  {/* Editar Info (Propietario) o Eliminar (No propietario o ambos) */}
+                  {item.usuario_id === userData?.id ? (
                     <TouchableOpacity 
                       style={[styles.btnAccion, { backgroundColor: '#0ea5e9', flex: 1.5 }]} 
                       onPress={() => onNavigate('editar_producto', item)}
@@ -274,10 +322,13 @@ export default function Inventario({ userData, onBack, onNavigate }) {
                       <Text style={[styles.btnAccionText, { color: '#ffffff' }]}>Editar Producto</Text>
                     </TouchableOpacity>
                   ) : (
-                    <View style={[styles.btnAccion, { backgroundColor: '#1e293b', flex: 1.5, opacity: 0.5 }]}>
-                      <Ionicons name="lock-closed-outline" size={16} color="#64748b" />
-                      <Text style={[styles.btnAccionText, { color: '#64748b' }]}>Solo Lectura</Text>
-                    </View>
+                    <TouchableOpacity 
+                      style={[styles.btnAccion, { backgroundColor: '#ef4444', flex: 1.5 }]} 
+                      onPress={() => confirmEliminar(item)}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#ffffff" />
+                      <Text style={[styles.btnAccionText, { color: '#ffffff' }]}>Eliminar</Text>
+                    </TouchableOpacity>
                   )}
                 </View>
               </View>
