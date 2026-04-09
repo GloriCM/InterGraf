@@ -305,12 +305,12 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
             <Ionicons name="cube-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
-          <TouchableOpacity>
-            <Ionicons name="chatbubble" size={24} color="#0ea5e9" style={{ marginHorizontal: 8 }} />
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('perfil')}>
+            <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
           <TouchableOpacity>
-            <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
+            <Ionicons name="chatbubble" size={24} color="#0ea5e9" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => onNavigate && onNavigate('login')}>

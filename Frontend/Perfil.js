@@ -156,12 +156,8 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate }) {
             <Ionicons name="home" size={22} color="#f8fafc" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
           
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('crear_producto')}>
-            <Ionicons name="add-outline" size={26} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-          
           <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
-            <Ionicons name="layers" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
+            <Ionicons name="layers-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
           
           <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
@@ -169,9 +165,11 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate }) {
           </TouchableOpacity>
 
           <TouchableOpacity>
-             <View style={styles.activeIconContainer}>
-               <Ionicons name="person-circle-outline" size={28} color="#0ea5e9" />
-             </View>
+            <Ionicons name="person-circle" size={30} color="#0ea5e9" style={{ marginHorizontal: 8 }} />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('mensajeria')}>
+            <Ionicons name="chatbubble-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => {
@@ -270,17 +268,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)'
   },
-  activeIconContainer: {
-     width: 38,
-     height: 38,
-     borderWidth: 1.5,
-     borderColor: '#f8fafc',
-     borderRadius: 6,
-     justifyContent: 'center',
-     alignItems: 'center',
-     marginHorizontal: 8,
-     backgroundColor: 'transparent'
-  },
+
   title: {
     color: '#ffffff',
     fontSize: 24,
