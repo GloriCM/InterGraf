@@ -11,12 +11,64 @@ import {
   Modal,
   TextInput,
   StatusBar,
-  ActivityIndicator
+  ActivityIndicator,
+  Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
 
+// --- ELIMINAR O COMENTAR LA VERSIÓN EXTERNA DEL COMPONENTE ---
+// Se moverá dentro de Inventario para mejor acceso a contexto
+
+
 export default function Inventario({ userData, onBack, onNavigate }) {
+  // --- SUB-COMPONENTE PARA EL CARRUSEL DE IMÁGENES ---
+  const ProductCarousel = ({ imagenes }) => {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    
+    // Asegurarnos de que sea un array
+    const imgList = Array.isArray(imagenes) ? imagenes : [];
+
+    if (imgList.length === 0) {
+      return (
+        <View style={styles.carouselContainer}>
+          <View style={styles.placeholderContainer}>
+            <Ionicons name="image-outline" size={48} color="#475569" />
+            <Text style={styles.placeholderText}>Sin imagen</Text>
+          </View>
+        </View>
+      );
+    }
+
+    const nextImage = () => setCurrentIndex((prev) => (prev + 1) % imgList.length);
+    const prevImage = () => setCurrentIndex((prev) => (prev - 1 + imgList.length) % imgList.length);
+
+    return (
+      <View style={styles.carouselContainer}>
+        <Image 
+          key={imgList[currentIndex]}
+          source={{ uri: imgList[currentIndex] }} 
+          style={styles.productImage} 
+          resizeMode="cover"
+        />
+        
+        {imgList.length > 1 && (
+          <>
+            <TouchableOpacity style={[styles.arrowBtn, styles.arrowLeft]} onPress={prevImage}>
+              <Ionicons name="chevron-back" size={24} color="#ffffff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.arrowBtn, styles.arrowRight]} onPress={nextImage}>
+              <Ionicons name="chevron-forward" size={24} color="#ffffff" />
+            </TouchableOpacity>
+            <View style={styles.imageCounter}>
+              <Text style={styles.imageCounterText}>{currentIndex + 1} / {imgList.length}</Text>
+            </View>
+          </>
+        )}
+      </View>
+    );
+  };
+
   // Datos provenientes de la base de datos
   const [inventario, setInventario] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,15 +88,22 @@ export default function Inventario({ userData, onBack, onNavigate }) {
         }
 
         if (data) {
+          console.log("DEBUG: Productos cargados", data.length);
           // Mapear los datos de BD a la estructura que espera la interfaz
-          const productosFormateados = data.map((prod) => ({
-            id: prod.id,
-            identificador: prod.nombre,
-            sku: prod.id ? prod.id.substring(0, 8).toUpperCase() : 'N/A', // Generar SKU visual corto a partir del UUID
-            stock: prod.stock,
-            minimo: prod.cantidad_minima || 10,
-            usuario_id: prod.usuario_id, // Identificador del dueño
-          }));
+          const productosFormateados = data.map((prod) => {
+            // Debug de imágenes por cada producto
+            if (prod.imagenes) console.log(`DEBUG: Prod ${prod.nombre} imagenes:`, prod.imagenes);
+            
+            return {
+              id: prod.id,
+              identificador: prod.nombre,
+              sku: prod.id ? prod.id.substring(0, 8).toUpperCase() : 'N/A', 
+              stock: prod.stock,
+              minimo: prod.cantidad_minima || 10,
+              usuario_id: prod.usuario_id, 
+              imagenes: prod.imagenes || [], 
+            };
+          });
           setInventario(productosFormateados);
         }
       } catch (error) {
@@ -281,6 +340,9 @@ export default function Inventario({ userData, onBack, onNavigate }) {
                   <Text style={styles.itemTitle}>{item.identificador}</Text>
                   <Text style={styles.itemSku}>SKU: {item.sku}</Text>
                 </View>
+
+                {/* CARRUSEL DE IMÁGENES */}
+                <ProductCarousel imagenes={item.imagenes} />
                 
                 <View style={styles.gridContainer}>
                   <View style={styles.gridBox}>
@@ -671,5 +733,60 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 5,
+  },
+  // -- Estilos Carrusel --
+  carouselContainer: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#1e293b',
+    borderRadius: 15,
+    marginBottom: 15,
+    overflow: 'hidden',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
+  },
+  placeholderContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeholderText: {
+    color: '#64748b',
+    fontSize: 12,
+    marginTop: 8,
+  },
+  arrowBtn: {
+    position: 'absolute',
+    top: '40%',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  arrowLeft: {
+    left: 10,
+  },
+  arrowRight: {
+    right: 10,
+  },
+  imageCounter: {
+    position: 'absolute',
+    bottom: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  imageCounterText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });

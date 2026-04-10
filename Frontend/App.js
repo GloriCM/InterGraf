@@ -137,7 +137,7 @@ export default function App() {
 
   // Pantalla de Crear Producto
   if (currentScreen === 'crear_producto') {
-    return <CrearProducto userData={userData} onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
+    return <CrearProducto userData={userData} onBack={() => setCurrentScreen('inventario')} onNavigate={setCurrentScreen} />;
   }
 
   // Pantalla de Editar Producto
