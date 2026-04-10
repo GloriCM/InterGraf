@@ -508,6 +508,10 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
             <Ionicons name="home" size={22} color="#f8fafc" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
+            <Ionicons name="layers-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
+          </TouchableOpacity>
+
           <TouchableOpacity onPress={() => onNavigate && onNavigate('perfil')}>
             <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>

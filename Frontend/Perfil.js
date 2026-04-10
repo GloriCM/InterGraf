@@ -156,6 +156,10 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate }) {
             <Ionicons name="home" size={22} color="#f8fafc" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
+            <Ionicons name="layers-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
+          </TouchableOpacity>
+
           <TouchableOpacity>
             <Ionicons name="person-circle" size={30} color="#0ea5e9" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
