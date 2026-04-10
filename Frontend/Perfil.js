@@ -237,6 +237,34 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate }) {
           </TouchableOpacity>
 
         </View>
+
+        {/* SECCIÓN ESTADÍSTICAS */}
+        <Text style={styles.statsMainTitle}>Estadísticas</Text>
+
+        <View style={styles.statsOuterCard}>
+          <Text style={styles.statsLabelPink}>Ingresos consolidados</Text>
+          <View style={styles.statsValueRow}>
+            <Text style={styles.statsValueMain}>$0</Text>
+            <Text style={styles.statsValueSub}>COP</Text>
+          </View>
+        </View>
+
+        <View style={styles.statsOuterCard}>
+          <Text style={styles.statsLabelWhite}>Crecimiento mensual</Text>
+          <View style={styles.statsGrowthRow}>
+            <View style={styles.growthIconContainer}>
+              <Ionicons name="trending-up" size={28} color="#34d399" />
+            </View>
+            <Text style={styles.statsValueMain}>0%</Text>
+          </View>
+        </View>
+
+        <View style={styles.statsOuterCard}>
+          <Text style={styles.statsLabelPink}>Ventas realizadas</Text>
+        </View>
+
+        <View style={[styles.statsOuterCard, { minHeight: 90 }]} />
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -392,5 +420,65 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  statsMainTitle: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 40,
+    marginBottom: 20,
+  },
+  statsOuterCard: {
+    width: '85%',
+    backgroundColor: 'transparent',
+    borderRadius: 30,
+    padding: 25,
+    borderColor: '#cbd5e1',
+    borderWidth: 1,
+    marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 120,
+  },
+  statsLabelPink: {
+    color: '#9d174d',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 15,
+  },
+  statsLabelWhite: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 15,
+  },
+  statsValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  statsValueMain: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  statsValueSub: {
+    color: '#cbd5e1',
+    fontSize: 12,
+    marginLeft: 6,
+  },
+  statsGrowthRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  growthIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#064e3b',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 20,
   },
 });
