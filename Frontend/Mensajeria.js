@@ -12,10 +12,15 @@ import {
   KeyboardAvoidingView,
   Alert,
   Modal,
-  ActivityIndicator
+  ActivityIndicator,
+  Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer';
 
 export default function Mensajeria({ onBack, onNavigate, userData }) {
   // Estado para la vista: 'lista' (Conversaciones) o 'chat' (Mensajes de un pedido)
@@ -31,6 +36,11 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
   const [resultadosBusqueda, setResultadosBusqueda] = useState([]);
   const [buscando, setBuscando] = useState(false);
   const [destinatarioSeleccionado, setDestinatarioSeleccionado] = useState(null);
+
+  // Estados para adjuntos (Ahora soporta múltiples)
+  const [adjuntos, setAdjuntos] = useState([]); // Array de { id, uri, name, type, mimeType }
+  const [enviando, setEnviando] = useState(false);
+  const [mostrarOpcionesAdjunto, setMostrarOpcionesAdjunto] = useState(false);
 
   // Datos de conversaciones reales de Supabase
   const [conversaciones, setConversaciones] = useState([]);
@@ -131,7 +141,7 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
   };
 
   const enviarMensaje = async () => {
-    if (!nuevoMensaje.trim() || !conversacionActiva) return;
+    if ((!nuevoMensaje.trim() && adjuntos.length === 0) || !conversacionActiva) return;
     
     if (nuevoMensaje.length > 300) {
       const msgError = 'El mensaje no puede superar los 300 caracteres.';
@@ -139,31 +149,150 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
       return;
     }
 
-    const contenido = nuevoMensaje.trim();
-    setNuevoMensaje(''); // Limpiar input rápido
+    setEnviando(true);
+    const textoMensaje = nuevoMensaje.trim();
+    const tempAdjuntos = [...adjuntos];
 
-    const { error } = await supabase
-      .from('mensajes')
-      .insert([{
-        conversacion_id: conversacionActiva.id,
-        remitente_id: userData.auth_user_id,
-        contenido: contenido
-      }]);
+    try {
+      // 1. Si no hay adjuntos, enviar solo texto
+      if (tempAdjuntos.length === 0) {
+        const { error } = await supabase
+          .from('mensajes')
+          .insert([{
+            conversacion_id: conversacionActiva.id,
+            remitente_id: userData.auth_user_id,
+            contenido: textoMensaje
+          }]);
+        if (error) throw error;
+      } else {
+        // 2. Si hay adjuntos, procesar cada uno
+        // Enviamos el texto en el primer mensaje de la tanda
+        for (let i = 0; i < tempAdjuntos.length; i++) {
+          const item = tempAdjuntos[i];
+          
+          // Obtener extensión de forma más segura usando el nombre o el tipo
+          // Evitamos usar item.uri.split('.').pop() porque si la URI es un base64, rompe el nombre del archivo
+          const extension = (item.name && item.name.includes('.') 
+            ? item.name.split('.').pop().toLowerCase() 
+            : (item.type === 'image' ? 'jpg' : 'pdf'));
+          
+          const fileName = `${userData.auth_user_id}-${Date.now()}-${i}.${extension}`;
+          
+          let fileData;
+          if (Platform.OS === 'web') {
+            const response = await fetch(item.uri);
+            fileData = await response.blob();
+          } else {
+            // Si la URI ya es base64 (data:...), la usamos directamente
+            if (item.uri && item.uri.startsWith('data:')) {
+              const base64Data = item.uri.split(',')[1];
+              fileData = decode(base64Data);
+            } else {
+              const base64 = await FileSystem.readAsStringAsync(item.uri, { encoding: FileSystem.EncodingType.Base64 });
+              fileData = decode(base64);
+            }
+          }
 
-    if (error) {
-      console.error('Error enviando mensaje:', error.message);
-      Alert.alert('Error', 'No se pudo enviar el mensaje.');
-    } else {
-      // Re-activar la conversación para el receptor si la tenía borrada
+          console.log(`DEBUG: Subiendo archivo ${i+1}/${tempAdjuntos.length}: ${fileName}`);
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('mensajes_adjuntos')
+            .upload(fileName, fileData, { 
+              contentType: item.mimeType || (item.type === 'image' ? `image/${extension}` : 'application/pdf'),
+              upsert: true
+            });
+
+          if (uploadError) {
+            console.error("DEEP ERROR DEBUG (Storage):", uploadError);
+            throw uploadError;
+          }
+
+          const { data: urlData } = supabase.storage.from('mensajes_adjuntos').getPublicUrl(fileName);
+          const publicUrl = urlData.publicUrl;
+
+          // Insertar registro de mensaje para este archivo
+          // El primer mensaje puede llevar el texto, los demás solo el archivo
+          const { error: msgError } = await supabase
+            .from('mensajes')
+            .insert([{
+              conversacion_id: conversacionActiva.id,
+              remitente_id: userData.auth_user_id,
+              contenido: i === 0 ? (textoMensaje || 'Archivo adjunto') : 'Archivo adjunto',
+              adjunto_url: publicUrl
+            }]);
+
+          if (msgError) throw msgError;
+        }
+      }
+
+      // Limpiar estados al tener éxito total
+      setNuevoMensaje('');
+      setAdjuntos([]);
+
+      // 3. Re-activar la conversación para el receptor
       const esComprador = conversacionActiva.comprador_id === userData.auth_user_id;
       const columnaReceptor = esComprador ? 'borrado_vendedor' : 'borrado_comprador';
-      
-      await supabase
-        .from('conversaciones')
-        .update({ [columnaReceptor]: false })
-        .eq('id', conversacionActiva.id);
+      await supabase.from('conversaciones').update({ [columnaReceptor]: false }).eq('id', conversacionActiva.id);
+
+    } catch (error) {
+      console.error('Error enviando mensaje (Detallado):', error);
+      const userMsg = error.message || 'Error desconocido al subir';
+      Alert.alert('Error', `No se pudo enviar: ${userMsg}`);
+    } finally {
+      setEnviando(false);
     }
   };
+
+  // --- Selección de Archivos (Múltiples) ---
+  const seleccionarImagen = async () => {
+    setMostrarOpcionesAdjunto(false);
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+      allowsMultipleSelection: true, // Permitir varios si el dispositivo lo soporta
+    });
+
+    if (!result.canceled) {
+      const nuevos = result.assets.map(asset => ({
+        id: Date.now() + Math.random(),
+        uri: asset.uri,
+        name: asset.fileName || `imagen_${Date.now()}.jpg`,
+        type: 'image',
+        mimeType: 'image/jpeg'
+      }));
+      setAdjuntos([...adjuntos, ...nuevos]);
+    }
+  };
+
+  const seleccionarDocumento = async () => {
+    setMostrarOpcionesAdjunto(false);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+        multiple: true, // Permitir varios
+      });
+
+      if (!result.canceled) {
+        const nuevos = result.assets.map(asset => ({
+          id: Date.now() + Math.random(),
+          uri: asset.uri,
+          name: asset.name,
+          type: 'pdf',
+          mimeType: 'application/pdf'
+        }));
+        setAdjuntos([...adjuntos, ...nuevos]);
+      }
+    } catch (err) {
+      console.error('Error seleccionando documento:', err);
+    }
+  };
+
+  const quitarAdjunto = (id) => {
+    setAdjuntos(adjuntos.filter(a => a.id !== id));
+  };
+
+
 
   const buscarUsuarios = async (texto) => {
     setBusqueda(texto);
@@ -457,47 +586,115 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
 
             <ScrollView style={styles.messagesArea} contentContainerStyle={{ paddingBottom: 20 }}>
               <Text style={styles.securityNotice}>Solo las partes involucradas en este pedido tienen acceso a esta conversación.</Text>
-              {mensajes.map((msg) => (
-                <View 
-                  key={msg.id} 
-                  style={[
-                    styles.messageBubble, 
-                    msg.remitente_id === userData?.auth_user_id ? styles.messageMine : styles.messageTheirs
-                  ]}
-                >
-                  <Text style={styles.messageText}>{msg.contenido}</Text>
-                  <Text style={styles.messageTime}>
-                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                </View>
-              ))}
+               {mensajes.map((msg) => {
+                 const esImagen = msg.adjunto_url && (msg.adjunto_url.toLowerCase().endsWith('.jpg') || msg.adjunto_url.toLowerCase().endsWith('.jpeg') || msg.adjunto_url.toLowerCase().endsWith('.png') || msg.adjunto_url.toLowerCase().endsWith('.webp'));
+                 const esPdf = msg.adjunto_url && msg.adjunto_url.toLowerCase().endsWith('.pdf');
+
+                 return (
+                   <View 
+                     key={msg.id} 
+                     style={[
+                       styles.messageBubble, 
+                       msg.remitente_id === userData?.auth_user_id ? styles.messageMine : styles.messageTheirs
+                     ]}
+                   >
+                     {esImagen && (
+                       <TouchableOpacity onPress={() => Platform.OS === 'web' ? window.open(msg.adjunto_url) : Alert.alert('Ver imagen', 'Función de vista previa en desarrollo.')}>
+                         <Image source={{ uri: msg.adjunto_url }} style={styles.messageImage} resizeMode="cover" />
+                       </TouchableOpacity>
+                     )}
+
+                     {esPdf && (
+                       <TouchableOpacity 
+                        style={styles.pdfBadge} 
+                        onPress={() => Platform.OS === 'web' ? window.open(msg.adjunto_url) : Alert.alert('PDF', 'Abriendo documento...')}
+                       >
+                         <Ionicons name="document-text" size={24} color="#ef4444" />
+                         <Text style={styles.pdfText}>Ver Documento PDF</Text>
+                       </TouchableOpacity>
+                     )}
+
+                     <Text style={styles.messageText}>{msg.contenido}</Text>
+                     <Text style={styles.messageTime}>
+                       {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                     </Text>
+                   </View>
+                 );
+               })}
             </ScrollView>
 
             {/* INPUT DE MENSAJE */}
-            <View style={styles.inputContainer}>
-              <TouchableOpacity style={styles.attachBtn} onPress={simularAdjunto}>
-                <Ionicons name="attach" size={24} color="#64748b" />
-              </TouchableOpacity>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Escribe un mensaje..."
-                placeholderTextColor="#64748b"
-                value={nuevoMensaje}
-                onChangeText={setNuevoMensaje}
-                maxLength={300}
-                multiline
-              />
-              <TouchableOpacity 
-                style={[styles.sendBtn, nuevoMensaje.trim() ? styles.sendBtnActive : null]} 
-                onPress={enviarMensaje}
-                disabled={!nuevoMensaje.trim()}
-              >
-                <Ionicons name="send" size={20} color={nuevoMensaje.trim() ? "#ffffff" : "#64748b"} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.charCount}>{nuevoMensaje.length}/300 caracteres</Text>
-          </KeyboardAvoidingView>
-        )}
+             {/* PREVISUALIZACIÓN DE ADJUNTOS (Múltiples) */}
+             {adjuntos.length > 0 && (
+               <ScrollView 
+                horizontal 
+                style={styles.previewContainer} 
+                contentContainerStyle={styles.previewContentContainer}
+               >
+                 {adjuntos.map((item) => (
+                   <View key={item.id} style={styles.previewBox}>
+                      {item.type === 'image' ? (
+                        <Ionicons name="image" size={16} color="#0ea5e9" />
+                      ) : (
+                        <Ionicons name="document-text" size={16} color="#ef4444" />
+                      )}
+                      <Text style={styles.previewName} numberOfLines={1}>{item.name}</Text>
+                      <TouchableOpacity onPress={() => quitarAdjunto(item.id)}>
+                        <Ionicons name="close-circle" size={18} color="#ef4444" />
+                      </TouchableOpacity>
+                   </View>
+                 ))}
+                 {enviando && <ActivityIndicator size="small" color="#0ea5e9" style={{ marginLeft: 10 }} />}
+               </ScrollView>
+             )}
+
+             {/* INPUT DE MENSAJE */}
+             <View style={styles.inputContainer}>
+               <TouchableOpacity 
+                style={styles.attachBtn} 
+                onPress={() => setMostrarOpcionesAdjunto(!mostrarOpcionesAdjunto)}
+               >
+                 <Ionicons name="attach" size={24} color={adjuntos.length > 0 ? "#0ea5e9" : "#64748b"} />
+               </TouchableOpacity>
+
+               {mostrarOpcionesAdjunto && (
+                 <View style={styles.attachMenu}>
+                   <TouchableOpacity style={styles.attachOption} onPress={seleccionarImagen}>
+                     <Ionicons name="image" size={20} color="#0ea5e9" />
+                     <Text style={styles.attachOptionText}>Imagen</Text>
+                   </TouchableOpacity>
+                   <TouchableOpacity style={styles.attachOption} onPress={seleccionarDocumento}>
+                     <Ionicons name="document-text" size={20} color="#ef4444" />
+                     <Text style={styles.attachOptionText}>PDF</Text>
+                   </TouchableOpacity>
+                 </View>
+               )}
+
+               <TextInput
+                 style={styles.textInput}
+                 placeholder="Escribe un mensaje..."
+                 placeholderTextColor="#64748b"
+                 value={nuevoMensaje}
+                 onChangeText={setNuevoMensaje}
+                 maxLength={300}
+                 multiline
+                 editable={!enviando}
+               />
+               <TouchableOpacity 
+                 style={[styles.sendBtn, (nuevoMensaje.trim() || adjuntos.length > 0) ? styles.sendBtnActive : null]} 
+                 onPress={enviarMensaje}
+                 disabled={(!nuevoMensaje.trim() && adjuntos.length === 0) || enviando}
+               >
+                 {enviando ? (
+                   <ActivityIndicator size="small" color="#ffffff" />
+                 ) : (
+                   <Ionicons name="send" size={20} color={(nuevoMensaje.trim() || adjuntos.length > 0) ? "#ffffff" : "#64748b"} />
+                 )}
+               </TouchableOpacity>
+             </View>
+             <Text style={styles.charCount}>{nuevoMensaje.length}/300 caracteres</Text>
+           </KeyboardAvoidingView>
+         )}
       </View>
     </SafeAreaView>
   );
@@ -710,6 +907,79 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     paddingRight: 15,
     paddingBottom: 15,
+  },
+  // -- Nuevos Estilos Adjuntos --
+  previewContainer: {
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderTopWidth: 1,
+    borderTopColor: '#1e293b',
+    maxHeight: 60,
+  },
+  previewContentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  previewBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    marginRight: 10,
+    maxWidth: 200,
+  },
+  previewName: {
+    color: '#ffffff',
+    fontSize: 12,
+    marginHorizontal: 8,
+    flexShrink: 1,
+  },
+  attachMenu: {
+    position: 'absolute',
+    bottom: 60,
+    left: 15,
+    backgroundColor: '#1e293b',
+    borderRadius: 15,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+    zIndex: 100,
+  },
+  attachOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  attachOptionText: {
+    color: '#ffffff',
+    fontSize: 14,
+    marginLeft: 10,
+  },
+  messageImage: {
+    width: 200,
+    height: 150,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  pdfBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  pdfText: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 10,
   },
   // -- Estilos FAB --
   fabMensaje: {

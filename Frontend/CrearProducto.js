@@ -10,7 +10,8 @@ import {
   Alert,
   Platform,
   StatusBar,
-  ActivityIndicator
+  ActivityIndicator,
+  Image
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker'; // Si se usa para categorías, aunque ahora es un TextInput
 import * as ImagePicker from 'expo-image-picker';
@@ -409,10 +410,13 @@ export default function CrearProducto({ onBack, onNavigate, producto, userData }
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginBottom: 10 }}>
               {imagenes.map((uri, index) => (
                 <View key={index} style={styles.imagePreviewWrapper}>
-                  {/* Vista preliminar simple */}
-                  <View style={styles.imagePlaceholder}>
-                    <Text style={{ color: '#0f172a', fontWeight: 'bold', fontSize: 10 }}>IMG {index + 1}</Text>
-                  </View>
+                  <Image source={{ uri }} style={styles.imagePreview} />
+                  <TouchableOpacity 
+                    style={styles.removeImageBtn} 
+                    onPress={() => setImagenes(imagenes.filter((_, i) => i !== index))}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#ef4444" />
+                  </TouchableOpacity>
                 </View>
               ))}
             </View>
@@ -565,15 +569,20 @@ const styles = StyleSheet.create({
   },
   imagePreviewWrapper: {
     margin: 5,
-    alignItems: 'center'
+    position: 'relative',
   },
-  imagePlaceholder: {
-    width: 40,
-    height: 40,
+  imagePreview: {
+    width: 60,
+    height: 60,
     borderRadius: 10,
     backgroundColor: '#cbd5e1',
-    justifyContent: 'center',
-    alignItems: 'center'
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
   },
   lanzarBtn: {
     backgroundColor: '#0ea5e9', // Azul cian vibrante
