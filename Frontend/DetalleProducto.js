@@ -22,6 +22,7 @@ const { width } = Dimensions.get('window');
  */
 export default function DetalleProducto({ userData, producto, onBack, onNavigate, onAddToCart }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [cantidad, setCantidad] = useState(producto.cantidad_minima || 1);
 
   if (!producto) return null;
 
@@ -41,11 +42,30 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
   };
 
   const handleAddToCart = () => {
-    onAddToCart(producto);
+    onAddToCart({ ...producto, cantidadSeleccionada: cantidad });
+    const msg = `¡${cantidad} unidad(es) de ${producto.nombre} añadida(s) al carrito!`;
     if (Platform.OS === 'web') {
-      window.alert(`¡${producto.nombre} añadido al carrito!`);
+      window.alert(msg);
     } else {
-      Alert.alert('Éxito', `¡${producto.nombre} añadido al carrito!`);
+      Alert.alert('Éxito', msg);
+    }
+  };
+
+  /**
+   * Lógica para incrementar cantidad respetando el stock disponible.
+   */
+  const incrementar = () => {
+    if (cantidad < (producto.stock || 0)) {
+      setCantidad(cantidad + 1);
+    }
+  };
+
+  /**
+   * Lógica para decrementar cantidad respetando el mínimo de compra.
+   */
+  const decrementar = () => {
+    if (cantidad > (producto.cantidad_minima || 1)) {
+      setCantidad(cantidad - 1);
     }
   };
 
@@ -131,28 +151,30 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
             </View>
           </View>
 
-          {/* DETALLES TÉCNICOS */}
+          {/* SELECTOR DE CANTIDAD */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Descripción Técnica</Text>
-            <Text style={styles.descriptionText}>
-              {producto.descripcion || 'No hay descripción técnica disponible para este producto.'}
-            </Text>
-          </View>
-
-          {/* ESPECIFICACIONES RÁPIDAS */}
-          <View style={styles.specsGrid}>
-            <View style={styles.specItem}>
-              <Ionicons name="cube-outline" size={20} color="#94a3b8" />
-              <View style={styles.specTextCol}>
-                <Text style={styles.specLabel}>Stock Disponible</Text>
-                <Text style={styles.specValue}>{producto.stock || 0} unidades</Text>
+            <Text style={styles.sectionTitle}>Cantidad a comprar</Text>
+            <View style={styles.quantityContainer}>
+              <TouchableOpacity 
+                style={[styles.qtyBtn, cantidad <= (producto.cantidad_minima || 1) && styles.qtyBtnDisabled]} 
+                onPress={decrementar}
+              >
+                <Ionicons name="remove" size={24} color={cantidad <= (producto.cantidad_minima || 1) ? "#475569" : "#ffffff"} />
+              </TouchableOpacity>
+              
+              <View style={styles.qtyDisplay}>
+                <Text style={styles.qtyText}>{cantidad}</Text>
               </View>
-            </View>
-            <View style={styles.specItem}>
-              <Ionicons name="timer-outline" size={20} color="#94a3b8" />
-              <View style={styles.specTextCol}>
-                <Text style={styles.specLabel}>Mínimo de Compra</Text>
-                <Text style={styles.specValue}>{producto.cantidad_minima || 1} unidad(es)</Text>
+
+              <TouchableOpacity 
+                style={[styles.qtyBtn, cantidad >= (producto.stock || 0) && styles.qtyBtnDisabled]} 
+                onPress={incrementar}
+              >
+                <Ionicons name="add" size={24} color={cantidad >= (producto.stock || 0) ? "#475569" : "#ffffff"} />
+              </TouchableOpacity>
+
+              <View style={styles.stockAvailability}>
+                <Text style={styles.stockText}>Disponibles: {producto.stock || 0}</Text>
               </View>
             </View>
           </View>
@@ -388,5 +410,43 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  quantityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    borderRadius: 20,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  qtyBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#1e293b',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qtyBtnDisabled: {
+    opacity: 0.3,
+  },
+  qtyDisplay: {
+    width: 60,
+    alignItems: 'center',
+  },
+  qtyText: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  stockAvailability: {
+    marginLeft: 'auto',
+    marginRight: 10,
+  },
+  stockText: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

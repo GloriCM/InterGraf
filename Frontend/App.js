@@ -256,7 +256,25 @@ export default function App() {
           }
           setCurrentScreen(screen);
         }}
-        onAddToCart={(item) => setCart([...cart, item])}
+        onAddToCart={(item) => {
+          setCart(prevCart => {
+            // Buscamos si el producto ya existe en el carrito
+            const existingIndex = prevCart.findIndex(i => i.id === item.id);
+            
+            if (existingIndex !== -1) {
+              // Si existe, creamos un nuevo array con la cantidad actualizada
+              const newCart = [...prevCart];
+              newCart[existingIndex] = {
+                ...newCart[existingIndex],
+                cantidadSeleccionada: (newCart[existingIndex].cantidadSeleccionada || 0) + item.cantidadSeleccionada
+              };
+              return newCart;
+            } else {
+              // Si no existe, lo añadimos como nuevo item
+              return [...prevCart, item];
+            }
+          });
+        }}
       />
     );
   }
