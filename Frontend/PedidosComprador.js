@@ -47,7 +47,7 @@ export default function PedidosComprador({ userData, onBack, onNavigate }) {
         .from('pedidos')
         .select(`
           *,
-          vendedor:vendedor_id (id, razon_social, ciudad),
+          vendedor:Usuarios_Registrados!pedidos_vendedor_id_fkey (id, razon_social, ciudad),
           detalles:detalle_pedidos (*)
         `)
         .eq('comprador_id', userData.auth_user_id)

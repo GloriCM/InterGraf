@@ -175,7 +175,7 @@ export default function Comprador({ userData, onBack, onNavigate, cart, setCart 
 
           <TouchableOpacity 
             style={styles.cartBtn}
-            // Aquí se podría abrir un modal con el carrito
+            onPress={() => onNavigate('resumen_carrito')}
           >
             <Ionicons name="cart-outline" size={26} color="#ffffff" />
             {cart.length > 0 && (

@@ -22,7 +22,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 
-export default function Mensajeria({ onBack, onNavigate, userData, initialRecipientId, initialProductContext, onClearInitialRecipient }) {
+export default function Mensajeria({ onBack, onNavigate, userData, initialRecipientId, initialProductContext, initialMessageText, onClearInitialRecipient }) {
   // Estado para la vista: 'lista' (Conversaciones) o 'chat' (Mensajes de un pedido)
   const [vistaActiva, setVistaActiva] = useState('lista');
   const [conversacionActiva, setConversacionActiva] = useState(null);
@@ -93,8 +93,11 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
   // Nuevo efecto para gestionar el inicio de un chat directo si viene de DetalleProducto
   useEffect(() => {
     if (initialRecipientId) {
-      // Pre-llenar mensaje si hay contexto de producto
-      if (initialProductContext) {
+      // Pre-llenar mensaje si se proporciona uno específico
+      if (initialMessageText) {
+        setNuevoMensaje(initialMessageText);
+      } else if (initialProductContext) {
+        // Fallback al mensaje por defecto de producto
         setNuevoMensaje(`Hola, me interesa este producto: ${initialProductContext.nombre || initialProductContext.identificador}`);
       }
 

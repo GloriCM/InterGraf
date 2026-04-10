@@ -14,6 +14,7 @@ import Comprador from './Comprador';
 import DetalleProducto from './DetalleProducto';
 import PedidosVendedor from './PedidosVendedor';
 import PedidosComprador from './PedidosComprador';
+import ResumenCarrito from './ResumenCarrito';
 import { useEffect } from 'react';
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
   // Estado para iniciar chat directo con un usuario
   const [initialRecipientId, setInitialRecipientId] = useState(null);
   const [initialProductContext, setInitialProductContext] = useState(null);
+  const [initialMessageText, setInitialMessageText] = useState(null);
 
   /**
    * Efecto para escuchar eventos de autenticación globales de Supabase.
@@ -172,9 +174,11 @@ export default function App() {
         userData={userData}
         initialRecipientId={initialRecipientId}
         initialProductContext={initialProductContext}
+        initialMessageText={initialMessageText}
         onClearInitialRecipient={() => {
           setInitialRecipientId(null);
           setInitialProductContext(null);
+          setInitialMessageText(null);
         }}
       />
     );
@@ -248,6 +252,19 @@ export default function App() {
     );
   }
 
+  // Pantalla de Resumen de Carrito
+  if (currentScreen === 'resumen_carrito') {
+    return (
+      <ResumenCarrito 
+        userData={userData}
+        cart={cart}
+        setCart={setCart}
+        onBack={() => setCurrentScreen('comprador')} 
+        onNavigate={setCurrentScreen} 
+      />
+    );
+  }
+
   // Pantalla de Detalle de Producto
   if (currentScreen === 'detalle_producto') {
     return (
@@ -259,6 +276,7 @@ export default function App() {
           if (screen === 'mensajeria' && data?.initialRecipient) {
             setInitialRecipientId(data.initialRecipient);
             if (data.initialProduct) setInitialProductContext(data.initialProduct);
+            if (data.initialMessage) setInitialMessageText(data.initialMessage);
           }
           setCurrentScreen(screen);
         }}

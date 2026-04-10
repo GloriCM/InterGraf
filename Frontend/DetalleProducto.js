@@ -10,9 +10,12 @@ import {
   Dimensions,
   Platform,
   StatusBar,
-  Alert
+  Alert,
+  TextInput,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from './supabase';
 
 const { width } = Dimensions.get('window');
 
@@ -23,6 +26,7 @@ const { width } = Dimensions.get('window');
 export default function DetalleProducto({ userData, producto, onBack, onNavigate, onAddToCart }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [cantidad, setCantidad] = useState(producto.cantidad_minima || 1);
+  const [enviando, setEnviando] = useState(false);
 
   if (!producto) return null;
 
@@ -41,13 +45,34 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
     }
   };
 
-  const handleAddToCart = () => {
-    onAddToCart({ ...producto, cantidadSeleccionada: cantidad });
-    const msg = `¡${cantidad} unidad(es) de ${producto.nombre} añadida(s) al carrito!`;
-    if (Platform.OS === 'web') {
-      window.alert(msg);
-    } else {
-      Alert.alert('Éxito', msg);
+  const handleAddToCart = async () => {
+    const numCantidad = parseInt(cantidad);
+    if (isNaN(numCantidad) || numCantidad < (producto.cantidad_minima || 1)) {
+        Alert.alert("Cantidad inválida", `La cantidad mínima es ${producto.cantidad_minima || 1}`);
+        return;
+    }
+    if (numCantidad > (producto.stock || 0)) {
+        Alert.alert("Sin stock", "No puedes añadir más de lo que hay disponible.");
+        return;
+    }
+
+    setEnviando(true);
+    try {
+        // Añadimos al estado local del carrito sin descontar de la DB todavía
+        onAddToCart({ ...producto, cantidadSeleccionada: numCantidad });
+        
+        const msg = `¡${numCantidad} unidad(es) de ${producto.nombre} añadida(s) al carrito!`;
+        if (Platform.OS === 'web') {
+            window.alert(msg);
+        } else {
+            Alert.alert('Éxito', msg);
+        }
+        
+        onBack(); // Regresamos al catálogo
+    } catch (err) {
+        Alert.alert("Error", err.message);
+    } finally {
+        setEnviando(false);
     }
   };
 
@@ -69,7 +94,7 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
     }
   };
 
-  const contactarVendedor = () => {
+  const contactarVendedor = (customMessage = null) => {
     // Navegamos a mensajería pasando el AUTH_ID del vendedor y el contexto del producto
     const sellerAuthId = producto.Usuarios_Registrados?.auth_user_id;
     
@@ -84,8 +109,14 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
 
     onNavigate('mensajeria', { 
       initialRecipient: sellerAuthId,
-      initialProduct: producto
+      initialProduct: producto,
+      initialMessage: customMessage
     });
+  };
+
+  const solicitarProducto = () => {
+    const msg = `Hola, me gustaría solicitar información sobre el producto: ${producto.nombre}, ya que se encuentra sin stock actualmente.`;
+    contactarVendedor(msg);
   };
 
   return (
@@ -97,9 +128,7 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
         <TouchableOpacity onPress={onBack} style={styles.circleBtn}>
           <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.circleBtn} onPress={handleAddToCart}>
-          <Ionicons name="cart-outline" size={24} color="#ffffff" />
-        </TouchableOpacity>
+        <View style={{ width: 44 }} /> 
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -138,7 +167,14 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
         <View style={styles.infoContent}>
           <View style={styles.titleRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.categoryText}>{producto.categoria || 'Sin Categoría'}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.categoryText}>{producto.categoria || 'Sin Categoría'}</Text>
+                {(producto.stock || 0) <= 0 && (
+                   <View style={styles.outOfStockBadge}>
+                     <Text style={styles.outOfStockText}>SIN STOCK</Text>
+                   </View>
+                )}
+              </View>
               <Text style={styles.productName}>{producto.nombre}</Text>
             </View>
             <Text style={styles.priceText}>${producto.precio || '0'}</Text>
@@ -177,18 +213,30 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
               </TouchableOpacity>
               
               <View style={styles.qtyDisplay}>
-                <Text style={styles.qtyText}>{cantidad}</Text>
+                <TextInput 
+                    style={styles.qtyInput}
+                    value={String(cantidad)}
+                    onChangeText={(text) => {
+                        const cleanText = text.replace(/[^0-9]/g, '');
+                        setCantidad(cleanText ? parseInt(cleanText) : 0);
+                    }}
+                    keyboardType="numeric"
+                    maxLength={5}
+                />
               </View>
 
               <TouchableOpacity 
-                style={[styles.qtyBtn, cantidad >= (producto.stock || 0) && styles.qtyBtnDisabled]} 
+                style={[styles.qtyBtn, (cantidad >= (producto.stock || 0) || (producto.stock || 0) <= 0) && styles.qtyBtnDisabled]} 
                 onPress={incrementar}
+                disabled={(producto.stock || 0) <= 0}
               >
-                <Ionicons name="add" size={24} color={cantidad >= (producto.stock || 0) ? "#475569" : "#ffffff"} />
+                <Ionicons name="add" size={24} color={(cantidad >= (producto.stock || 0) || (producto.stock || 0) <= 0) ? "#475569" : "#ffffff"} />
               </TouchableOpacity>
 
               <View style={styles.stockAvailability}>
-                <Text style={styles.stockText}>Disponibles: {producto.stock || 0}</Text>
+                <Text style={[styles.stockText, (producto.stock || 0) <= 0 && { color: '#ef4444' }]}>
+                    {(producto.stock || 0) <= 0 ? "Sin stock disponible" : `Disponibles: ${producto.stock}`}
+                </Text>
               </View>
             </View>
           </View>
@@ -199,9 +247,30 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
 
       {/* FOOTER BAR (BOTÓN DE ACCIÓN) */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.primaryBtn} onPress={handleAddToCart}>
-          <Ionicons name="cart" size={20} color="#ffffff" style={{ marginRight: 10 }} />
-          <Text style={styles.primaryBtnText}>Añadir al Carrito</Text>
+        <TouchableOpacity 
+            style={[
+                styles.primaryBtn, 
+                enviando && { opacity: 0.7 },
+                (producto.stock || 0) <= 0 && { backgroundColor: '#475569', shadowColor: 'transparent' }
+            ]} 
+            onPress={(producto.stock || 0) <= 0 ? solicitarProducto : handleAddToCart}
+            disabled={enviando}
+        >
+          {enviando ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <>
+                <Ionicons 
+                    name={(producto.stock || 0) <= 0 ? "chatbubble-ellipses" : "cart"} 
+                    size={20} 
+                    color="#ffffff" 
+                    style={{ marginRight: 10 }} 
+                />
+                <Text style={styles.primaryBtnText}>
+                    {(producto.stock || 0) <= 0 ? "Solicitar Producto" : "Añadir al Carrito"}
+                </Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -449,6 +518,13 @@ const styles = StyleSheet.create({
     width: 60,
     alignItems: 'center',
   },
+  qtyInput: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    width: '100%',
+  },
   qtyText: {
     color: '#ffffff',
     fontSize: 20,
@@ -462,5 +538,19 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontSize: 12,
     fontWeight: '500',
+  },
+  outOfStockBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: 10,
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  outOfStockText: {
+    color: '#ef4444',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });

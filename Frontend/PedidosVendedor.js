@@ -41,6 +41,30 @@ export default function PedidosVendedor({ userData, onBack, onNavigate }) {
 
   useEffect(() => {
     fetchPedidos();
+
+    // SUSCRIPCIÓN EN TIEMPO REAL A NUEVOS PEDIDOS
+    const canalPedidos = supabase
+      .channel('public:pedidos-seller')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'pedidos',
+        filter: `vendedor_id=eq.${userData?.auth_user_id}`
+      }, (payload) => {
+        // Al recibir un nuevo pedido, recargar lista y alertar
+        fetchPedidos();
+        const msg = "¡Has recibido un nuevo pedido! Revisa la lista.";
+        if (Platform.OS === 'web') {
+          window.alert(msg);
+        } else {
+          Alert.alert("🎉 Nuevo Pedido", msg);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canalPedidos);
+    };
   }, [userData]);
 
   /**
@@ -58,7 +82,7 @@ export default function PedidosVendedor({ userData, onBack, onNavigate }) {
         .from('pedidos')
         .select(`
           *,
-          comprador:comprador_id (id, razon_social, ciudad),
+          comprador:Usuarios_Registrados!pedidos_comprador_id_fkey (id, razon_social, ciudad),
           detalles:detalle_pedidos (*)
         `)
         .eq('vendedor_id', userData.auth_user_id)

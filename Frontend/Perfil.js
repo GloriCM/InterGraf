@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -26,6 +26,44 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate }) {
   const [logoUri, setLogoUri] = useState(userData?.logo_url || null);
   const [loading, setLoading] = useState(false);
   const [newImageSelected, setNewImageSelected] = useState(false);
+
+  // Estados para estadísticas dinámicas
+  const [stats, setStats] = useState({ ingresos: 0, ventas: 0 });
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, [userData]);
+
+  const fetchStats = async () => {
+    if (!userData?.auth_user_id) return;
+    
+    setLoadingStats(true);
+    try {
+      // Obtenemos los pedidos donde el usuario es el vendedor
+      const { data, error } = await supabase
+        .from('pedidos')
+        .select('total, estado')
+        .eq('vendedor_id', userData.auth_user_id);
+
+      if (error) throw error;
+
+      if (data) {
+        // Filtramos solo los que no estén cancelados para los ingresos
+        const validOrders = data.filter(p => p.estado !== 'Cancelado');
+        const totalIngresos = validOrders.reduce((acc, p) => acc + (p.total || 0), 0);
+        
+        setStats({
+          ingresos: totalIngresos,
+          ventas: data.length
+        });
+      }
+    } catch (err) {
+      console.error("Error cargando estadísticas:", err.message);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
   const pickImage = async () => {
     // Pedimos permiso
@@ -248,7 +286,11 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate }) {
         <View style={styles.statsOuterCard}>
           <Text style={styles.statsLabelPink}>Ingresos consolidados</Text>
           <View style={styles.statsValueRow}>
-            <Text style={styles.statsValueMain}>$0</Text>
+            {loadingStats ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+                <Text style={styles.statsValueMain}>${stats.ingresos.toLocaleString()}</Text>
+            )}
             <Text style={styles.statsValueSub}>COP</Text>
           </View>
         </View>
@@ -265,6 +307,11 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate }) {
 
         <View style={styles.statsOuterCard}>
           <Text style={styles.statsLabelPink}>Ventas realizadas</Text>
+          {loadingStats ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+                <Text style={styles.statsValueMain}>{stats.ventas}</Text>
+            )}
         </View>
 
         <View style={[styles.statsOuterCard, { minHeight: 90 }]} />
