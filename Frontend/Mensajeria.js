@@ -22,7 +22,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 
-export default function Mensajeria({ onBack, onNavigate, userData }) {
+export default function Mensajeria({ onBack, onNavigate, userData, initialRecipientId, onClearInitialRecipient }) {
   // Estado para la vista: 'lista' (Conversaciones) o 'chat' (Mensajes de un pedido)
   const [vistaActiva, setVistaActiva] = useState('lista');
   const [conversacionActiva, setConversacionActiva] = useState(null);
@@ -89,6 +89,63 @@ export default function Mensajeria({ onBack, onNavigate, userData }) {
       supabase.removeChannel(canalConv);
     };
   }, [userData]);
+
+  // Nuevo efecto para gestionar el inicio de un chat directo si viene de DetalleProducto
+  useEffect(() => {
+    if (initialRecipientId && conversaciones.length > 0) {
+      // Buscar si ya existe una conversación con ese usuario
+      const convExistente = conversaciones.find(c => 
+        c.comprador_id === initialRecipientId || c.vendedor_id === initialRecipientId
+      );
+
+      if (convExistente) {
+        abrirConversacion(convExistente);
+      } else {
+        // Si no existe, preparamos el modal de nueva conversación con ese usuario
+        // O mejor aún, la intentamos crear automáticamente
+        prepararChatDirecto(initialRecipientId);
+      }
+      
+      // Limpiamos el estado en App.js para que no se repita
+      if (onClearInitialRecipient) onClearInitialRecipient();
+    }
+  }, [initialRecipientId, conversaciones]);
+
+  const prepararChatDirecto = async (recipientId) => {
+    setLoading(true);
+    try {
+      // Buscar el nombre del destinatario para mostrarlo
+      const { data: user, error: userError } = await supabase
+        .from('Usuarios_Registrados')
+        .select('razon_social, auth_user_id')
+        .eq('auth_user_id', recipientId)
+        .single();
+      
+      if (userError) throw userError;
+
+      // Crear la conversación directamente
+      const { data: newConv, error: convError } = await supabase
+        .from('conversaciones')
+        .insert([{
+          comprador_id: userData.auth_user_id,
+          vendedor_id: recipientId,
+          pedido_id: null
+        }])
+        .select()
+        .single();
+
+      if (convError) throw convError;
+
+      // Abrir el nuevo chat
+      fetchConversaciones();
+      abrirConversacion(newConv);
+    } catch (error) {
+      console.error('Error al iniciar chat directo:', error.message);
+      Alert.alert('Error', 'No se pudo iniciar el chat con el proveedor.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 2. Gestionar mensajes y Realtime de la conversación activa
   useEffect(() => {

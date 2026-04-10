@@ -10,6 +10,10 @@ import RecuperarPassword from './RecuperarPassword';
 import RestablecerPassword from './RestablecerPassword';
 import Perfil from './Perfil';
 import Mensajeria from './Mensajeria';
+import Comprador from './Comprador';
+import DetalleProducto from './DetalleProducto';
+import PedidosVendedor from './PedidosVendedor';
+import PedidosComprador from './PedidosComprador';
 import { useEffect } from 'react';
 
 export default function App() {
@@ -19,8 +23,14 @@ export default function App() {
   // Datos de la empresa después de loguearse con éxito
   const [userData, setUserData] = useState(null); 
 
-  // Datos del producto seleccionado para editar
+  // Datos del producto seleccionado para editar o ver detalle
   const [selectedProduct, setSelectedProduct] = useState(null);
+
+  // Estado del Carrito de Compras
+  const [cart, setCart] = useState([]);
+
+  // Estado para iniciar chat directo con un usuario
+  const [initialRecipientId, setInitialRecipientId] = useState(null);
 
   /**
    * Efecto para escuchar eventos de autenticación globales de Supabase.
@@ -99,7 +109,7 @@ export default function App() {
           
           <TouchableOpacity 
             style={styles.roleCard} 
-            // onPress={() => setCurrentScreen('comprador')} // Descomenta cuando tengas la pantalla
+            onPress={() => setCurrentScreen('comprador')} 
           >
             <View style={[styles.roleIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
               <Ionicons name="cart-outline" size={24} color="#3b82f6" />
@@ -159,6 +169,8 @@ export default function App() {
         onBack={() => setCurrentScreen('dashboard')} 
         onNavigate={setCurrentScreen} 
         userData={userData}
+        initialRecipientId={initialRecipientId}
+        onClearInitialRecipient={() => setInitialRecipientId(null)}
       />
     );
   }
@@ -179,6 +191,17 @@ export default function App() {
     );
   }
 
+  // Pantalla de Pedidos Recibidos (RF-013)
+  if (currentScreen === 'pedidos_vendedor') {
+    return (
+      <PedidosVendedor 
+        userData={userData} 
+        onBack={() => setCurrentScreen('dashboard')} 
+        onNavigate={setCurrentScreen} 
+      />
+    );
+  }
+
   // Pantalla de Perfil
   if (currentScreen === 'perfil') {
     return (
@@ -187,6 +210,53 @@ export default function App() {
         onUpdate={setUserData} 
         onBack={() => setCurrentScreen('dashboard')} 
         onNavigate={setCurrentScreen} 
+      />
+    );
+  }
+
+  // Pantalla de Comprador
+  if (currentScreen === 'comprador') {
+    return (
+      <Comprador 
+        userData={userData} 
+        onBack={() => setCurrentScreen('dashboard')} 
+        onNavigate={(screen, data) => {
+          if (screen === 'detalle_producto') {
+            setSelectedProduct(data);
+          }
+          setCurrentScreen(screen);
+        }}
+        cart={cart}
+        setCart={setCart}
+      />
+    );
+  }
+
+  // Pantalla de Pedidos Realizados (Comprador - Sección 3.4)
+  if (currentScreen === 'pedidos_comprador') {
+    return (
+      <PedidosComprador 
+        userData={userData} 
+        onBack={() => setCurrentScreen('comprador')} 
+        onNavigate={setCurrentScreen} 
+      />
+    );
+  }
+
+  // Pantalla de Detalle de Producto
+  if (currentScreen === 'detalle_producto') {
+    return (
+      <DetalleProducto 
+        userData={userData} 
+        producto={selectedProduct}
+        onBack={() => setCurrentScreen('comprador')} 
+        onNavigate={(screen, data) => {
+          if (screen === 'mensajeria' && data?.initialRecipient) {
+            setInitialRecipientId(data.initialRecipient);
+          }
+          setCurrentScreen(screen);
+        }}
+        onAddToCart={(item) => setCart([...cart, item])}
       />
     );
   }

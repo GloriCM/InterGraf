@@ -315,6 +315,11 @@ export default function Inventario({ userData, onBack, onNavigate }) {
             <Ionicons name="chatbubble-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
+          {/* Botón para ir a Pedidos Recibidos (RF-013) */}
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('pedidos_vendedor')}>
+            <Ionicons name="receipt-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
+          </TouchableOpacity>
+
           <TouchableOpacity onPress={() => onNavigate && onNavigate('login')}>
             <Ionicons name="log-out-outline" size={26} color="#f8fafc" style={{ marginLeft: 8 }} />
           </TouchableOpacity>
