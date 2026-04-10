@@ -31,6 +31,7 @@ export default function App() {
 
   // Estado para iniciar chat directo con un usuario
   const [initialRecipientId, setInitialRecipientId] = useState(null);
+  const [initialProductContext, setInitialProductContext] = useState(null);
 
   /**
    * Efecto para escuchar eventos de autenticación globales de Supabase.
@@ -170,7 +171,11 @@ export default function App() {
         onNavigate={setCurrentScreen} 
         userData={userData}
         initialRecipientId={initialRecipientId}
-        onClearInitialRecipient={() => setInitialRecipientId(null)}
+        initialProductContext={initialProductContext}
+        onClearInitialRecipient={() => {
+          setInitialRecipientId(null);
+          setInitialProductContext(null);
+        }}
       />
     );
   }
@@ -196,7 +201,7 @@ export default function App() {
     return (
       <PedidosVendedor 
         userData={userData} 
-        onBack={() => setCurrentScreen('dashboard')} 
+        onBack={() => setCurrentScreen('inventario')} 
         onNavigate={setCurrentScreen} 
       />
     );
@@ -253,6 +258,7 @@ export default function App() {
         onNavigate={(screen, data) => {
           if (screen === 'mensajeria' && data?.initialRecipient) {
             setInitialRecipientId(data.initialRecipient);
+            if (data.initialProduct) setInitialProductContext(data.initialProduct);
           }
           setCurrentScreen(screen);
         }}

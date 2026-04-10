@@ -41,7 +41,7 @@ export default function CrearProducto({ onBack, onNavigate, producto, userData }
 
   // Efecto para verificar propiedad en modo edición
   useEffect(() => {
-    if (esEdicion && producto.empresa_id !== userData?.id) {
+    if (esEdicion && producto.usuario_id !== userData?.id) {
        mostrarError("No tienes permisos para editar este producto.");
        onBack();
     }

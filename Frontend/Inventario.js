@@ -12,10 +12,14 @@ import {
   TextInput,
   StatusBar,
   ActivityIndicator,
-  Image
+  Image,
+  Dimensions
 } from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
+
+const { width } = Dimensions.get('window');
 
 // --- ELIMINAR O COMENTAR LA VERSIÓN EXTERNA DEL COMPONENTE ---
 // Se moverá dentro de Inventario para mejor acceso a contexto
@@ -97,9 +101,16 @@ export default function Inventario({ userData, onBack, onNavigate }) {
             return {
               id: prod.id,
               identificador: prod.nombre,
+              nombre: prod.nombre,
               sku: prod.id ? prod.id.substring(0, 8).toUpperCase() : 'N/A', 
               stock: prod.stock,
+              precio: prod.precio,
               minimo: prod.cantidad_minima || 10,
+              cantidadMinima: prod.cantidad_minima || 10,
+              descripcionTecnica: prod.descripcion_tecnica,
+              categoria: prod.categoria,
+              preciosVolumen: prod.precios_volumen,
+              tiempoEstimado: prod.tiempo_estimado,
               usuario_id: prod.usuario_id, 
               imagenes: prod.imagenes || [], 
             };
@@ -139,6 +150,11 @@ export default function Inventario({ userData, onBack, onNavigate }) {
 
   // Estados para ver el historial
   const [verHistorial, setVerHistorial] = useState(false);
+  const [filtroSku, setFiltroSku] = useState(null);
+
+  // Estados para el Menú de Opciones (3 puntos)
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [productoParaMenu, setProductoParaMenu] = useState(null);
 
   // --- Funciones Lógicas ---
 
@@ -297,15 +313,6 @@ export default function Inventario({ userData, onBack, onNavigate }) {
           <TouchableOpacity onPress={() => onNavigate ? onNavigate('dashboard') : onBack()}>
             <Ionicons name="home" size={22} color="#f8fafc" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
-          
-
-          <TouchableOpacity onPress={() => setVerHistorial(false)}>
-            <Ionicons name={!verHistorial ? "layers" : "layers-outline"} size={24} color={!verHistorial ? "#0ea5e9" : "#64748b"} style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity onPress={() => setVerHistorial(true)}>
-            <Ionicons name={verHistorial ? "cube" : "cube-outline"} size={24} color={verHistorial ? "#0ea5e9" : "#64748b"} style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
 
           <TouchableOpacity onPress={() => onNavigate && onNavigate('perfil')}>
             <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
@@ -315,7 +322,6 @@ export default function Inventario({ userData, onBack, onNavigate }) {
             <Ionicons name="chatbubble-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
-          {/* Botón para ir a Pedidos Recibidos (RF-013) */}
           <TouchableOpacity onPress={() => onNavigate && onNavigate('pedidos_vendedor')}>
             <Ionicons name="receipt-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
@@ -342,8 +348,19 @@ export default function Inventario({ userData, onBack, onNavigate }) {
               return (
               <View key={item.id} style={styles.cardItem}>
                 <View style={styles.cardHeader}>
-                  <Text style={styles.itemTitle}>{item.identificador}</Text>
-                  <Text style={styles.itemSku}>SKU: {item.sku}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.itemTitle}>{item.identificador}</Text>
+                    <Text style={styles.itemSku}>SKU: {item.sku}</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.btnOptions} 
+                    onPress={() => {
+                      setProductoParaMenu(item);
+                      setMenuVisible(true);
+                    }}
+                  >
+                    <Ionicons name="ellipsis-vertical" size={20} color="#94a3b8" />
+                  </TouchableOpacity>
                 </View>
 
                 {/* CARRUSEL DE IMÁGENES */}
@@ -368,24 +385,14 @@ export default function Inventario({ userData, onBack, onNavigate }) {
                   </View>
                 </View>
 
-                {/* BOTONES DE ACCIÓN */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 }}>
-                  {/* Ajustar Stock (Solo para el responsable) */}
+                {/* BOTÓN DE AJUSTAR STOCK (Principal) */}
+                <View style={{ marginTop: 15 }}>
                   <TouchableOpacity 
-                    style={[styles.btnAccion, { backgroundColor: '#cbd5e1', flex: 1, marginRight: 8 }]} 
+                    style={[styles.btnAccion, { backgroundColor: '#cbd5e1' }]} 
                     onPress={() => abrirModalDeAjuste(item)}
                   >
                     <Ionicons name="stats-chart-outline" size={16} color="#0f172a" />
                     <Text style={styles.btnAccionText}>Modificar Stock</Text>
-                  </TouchableOpacity>
-
-                  {/* Botón Borrar (Para todos) */}
-                  <TouchableOpacity 
-                    style={[styles.btnAccion, { backgroundColor: '#ef4444', flex: 1.5 }]} 
-                    onPress={() => confirmEliminar(item)}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#ffffff" />
-                    <Text style={[styles.btnAccionText, { color: '#ffffff' }]}>Borrar</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -394,11 +401,34 @@ export default function Inventario({ userData, onBack, onNavigate }) {
           )
         ) : (
           // --- LISTA DE HISTORIAL ---
-          historial.length === 0 ? (
-            <Text style={{color: '#94a3b8', marginTop: 20}}>No hay movimientos registrados recientes.</Text>
-          ) : (
-            historial.map((reg) => (
-              <View key={reg.id} style={styles.historyCard}>
+          <>
+            <TouchableOpacity 
+              style={styles.btnVolverInv} 
+              onPress={() => {
+                setVerHistorial(false);
+                setFiltroSku(null);
+              }}
+            >
+              <Ionicons name="arrow-back" size={16} color="#0ea5e9" />
+              <Text style={styles.btnVolverInvText}>Volver al Inventario</Text>
+            </TouchableOpacity>
+
+            {filtroSku && (
+              <View style={styles.filtroBadge}>
+                <Text style={styles.filtroBadgeText}>Filtrado por SKU: {filtroSku}</Text>
+                <TouchableOpacity onPress={() => setFiltroSku(null)}>
+                  <Ionicons name="close-circle" size={16} color="#0ea5e9" />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {historial.filter(h => !filtroSku || h.sku === filtroSku).length === 0 ? (
+              <Text style={{color: '#94a3b8', marginTop: 20}}>No hay movimientos registrados recientes.</Text>
+            ) : (
+              historial
+                .filter(h => !filtroSku || h.sku === filtroSku)
+                .map((reg) => (
+                <View key={reg.id} style={styles.historyCard}>
                 <View style={styles.historyHeader}>
                   <Text style={styles.historyDate}>{reg.fecha}</Text>
                   <Text style={styles.historySku}>{reg.sku}</Text>
@@ -409,7 +439,8 @@ export default function Inventario({ userData, onBack, onNavigate }) {
                 <Text style={styles.historyReason}>Motivo: <Text style={{fontWeight:'normal'}}>{reg.motivo}</Text></Text>
               </View>
             ))
-          )
+          )}
+          </>
         )}
       </ScrollView>
 
@@ -465,6 +496,59 @@ export default function Inventario({ userData, onBack, onNavigate }) {
               </TouchableOpacity>
             </View>
           </View>
+        </Modal>
+      )}
+      {/* MODAL DE OPCIONES DE PRODUCTO (3 PUNTOS) */}
+      {menuVisible && productoParaMenu && (
+        <Modal transparent={true} visible={menuVisible} animationType="fade" onRequestClose={() => setMenuVisible(false)}>
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPress={() => setMenuVisible(false)}
+          >
+            <View style={styles.optionsPopup}>
+              <Text style={styles.optionsPopupTitle}>{productoParaMenu.identificador}</Text>
+              <View style={styles.divider} />
+              
+              <TouchableOpacity 
+                style={styles.optionItem}
+                onPress={() => {
+                  setMenuVisible(false);
+                  setFiltroSku(productoParaMenu.sku);
+                  setVerHistorial(true);
+                }}
+              >
+                <Ionicons name="time-outline" size={20} color="#0ea5e9" />
+                <Text style={styles.optionItemText}>Historial de Ajustes</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.optionItem}
+                onPress={() => {
+                  setMenuVisible(false);
+                  onNavigate && onNavigate('editar_producto', productoParaMenu);
+                }}
+              >
+                <Ionicons name="create-outline" size={20} color="#10b981" />
+                <Text style={styles.optionItemText}>Editar Producto</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.optionItem, { borderBottomWidth: 0 }]}
+                onPress={() => {
+                  setMenuVisible(false);
+                  confirmEliminar(productoParaMenu);
+                }}
+              >
+                <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                <Text style={[styles.optionItemText, { color: '#ef4444' }]}>Eliminar Producto</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.btnCloseMenu} onPress={() => setMenuVisible(false)}>
+                <Text style={styles.btnCloseMenuText}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
         </Modal>
       )}
 
@@ -793,5 +877,92 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  // -- Nuevos Estilos Menú Opciones --
+  btnOptions: {
+    padding: 10,
+    marginRight: -10,
+  },
+  optionsPopup: {
+    width: '80%',
+    backgroundColor: '#0f172a',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+    shadowColor: '#000',
+    shadowOpacity: 0.5,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  optionsPopupTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#1e293b',
+    marginBottom: 5,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b',
+  },
+  optionItemText: {
+    color: '#e2e8f0',
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 15,
+  },
+  btnCloseMenu: {
+    marginTop: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  btnCloseMenuText: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  btnVolverInv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginLeft: '5%',
+    marginBottom: 15,
+    backgroundColor: '#0ea5e915',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  btnVolverInvText: {
+    color: '#0ea5e9',
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginLeft: 6,
+  },
+  filtroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0ea5e920',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#0ea5e9',
+  },
+  filtroBadgeText: {
+    color: '#0ea5e9',
+    fontSize: 11,
+    fontWeight: 'bold',
+    marginRight: 8,
   },
 });

@@ -70,8 +70,22 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
   };
 
   const contactarVendedor = () => {
-    // Navegamos a mensajería pasando el ID del vendedor (usuario_id)
-    onNavigate('mensajeria', { initialRecipient: producto.usuario_id });
+    // Navegamos a mensajería pasando el AUTH_ID del vendedor y el contexto del producto
+    const sellerAuthId = producto.Usuarios_Registrados?.auth_user_id;
+    
+    if (!sellerAuthId) {
+      if (Platform.OS === 'web') {
+        window.alert("Error: No se pudo identificar el ID de autenticación del vendedor.");
+      } else {
+        Alert.alert("Error", "No se pudo identificar al vendedor.");
+      }
+      return;
+    }
+
+    onNavigate('mensajeria', { 
+      initialRecipient: sellerAuthId,
+      initialProduct: producto
+    });
   };
 
   return (

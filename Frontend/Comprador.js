@@ -50,7 +50,7 @@ export default function Comprador({ userData, onBack, onNavigate, cart, setCart 
         .from('productos')
         .select(`
           *,
-          Usuarios_Registrados:usuario_id (razon_social, ciudad)
+          Usuarios_Registrados:usuario_id (auth_user_id, razon_social, ciudad)
         `)
         .neq('usuario_id', userData?.id || null);
 
@@ -110,42 +110,46 @@ export default function Comprador({ userData, onBack, onNavigate, cart, setCart 
       <TouchableOpacity 
         style={styles.productCard}
         onPress={() => onNavigate('detalle_producto', item)}
+        activeOpacity={0.9}
       >
         <View style={styles.imageContainer}>
           {imagenUrl ? (
             <Image source={{ uri: imagenUrl }} style={styles.productImage} resizeMode="cover" />
           ) : (
             <View style={styles.noImage}>
-              <Ionicons name="image-outline" size={32} color="#475569" />
+              <Ionicons name="image-outline" size={32} color="#334155" />
             </View>
           )}
-          {item.stock <= (item.cantidad_minima || 5) && (
-            <View style={styles.lowStockBadge}>
-              <Text style={styles.lowStockText}>Bajo Stock</Text>
+          
+          <View style={styles.badgeContainer}>
+            {item.stock <= (item.cantidad_minima || 5) && (
+              <View style={styles.lowStockBadge}>
+                <Text style={styles.lowStockText}>Bajo Stock</Text>
+              </View>
+            )}
+            <View style={styles.cityBadge}>
+              <Text style={styles.cityText}>{item.Usuarios_Registrados?.ciudad || 'N/A'}</Text>
             </View>
-          )}
+          </View>
         </View>
 
         <View style={styles.cardInfo}>
           <Text style={styles.productName} numberOfLines={1}>{item.nombre}</Text>
           <Text style={styles.sellerName} numberOfLines={1}>
-            <Ionicons name="business" size={10} color="#94a3b8" /> {item.Usuarios_Registrados?.razon_social || 'Proveedor'}
+            {item.Usuarios_Registrados?.razon_social || 'Proveedor'}
           </Text>
           
           <View style={styles.priceRow}>
-            <Text style={styles.priceText}>${item.precio || 'Consultar'}</Text>
-            <View style={styles.cityBadge}>
-              <Text style={styles.cityText}>{item.Usuarios_Registrados?.ciudad || 'N/A'}</Text>
-            </View>
+            <Text style={styles.priceCurrency}>$</Text>
+            <Text style={styles.priceValue}>{item.precio?.toLocaleString() || '---'}</Text>
+            
+            <TouchableOpacity 
+              style={styles.addIconBtn}
+              onPress={() => onNavigate('detalle_producto', item)}
+            >
+              <Ionicons name="add" size={20} color="#ffffff" />
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity 
-            style={styles.viewDetailBtn}
-            onPress={() => onNavigate('detalle_producto', item)}
-          >
-            <Text style={styles.viewDetailBtnText}>Ver Detalles</Text>
-            <Ionicons name="chevron-forward" size={14} color="#ffffff" />
-          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -291,133 +295,156 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#0f172a',
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderColor: '#1e293b',
+    paddingBottom: 20,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 15,
+    elevation: 10,
+    zIndex: 100,
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    marginBottom: 16,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    marginBottom: 20,
   },
   backBtn: {
     padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
   },
   headerTitle: {
     color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   cartBtn: {
     padding: 8,
     position: 'relative',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
   },
   cartBadge: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: '#ef4444',
-    width: 18,
+    top: -5,
+    right: -5,
+    backgroundColor: '#f43f5e',
+    minWidth: 18,
     height: 18,
     borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#0f172a',
+    paddingHorizontal: 4,
   },
   cartBadgeText: {
     color: '#ffffff',
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '900',
   },
   searchContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
   searchWrapper: {
     flex: 1,
     flexDirection: 'row',
     backgroundColor: '#1e293b',
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
-    paddingHorizontal: 12,
-    height: 48,
-    marginRight: 12,
+    paddingHorizontal: 15,
+    height: 52,
+    marginRight: 10,
     borderWidth: 1,
     borderColor: '#334155',
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '500',
   },
   filterBtn: {
-    width: 48,
-    height: 48,
+    width: 52,
+    height: 52,
     backgroundColor: '#1e293b',
-    borderRadius: 12,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#334155',
   },
   filterBtnActive: {
-    borderColor: '#3b82f6',
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderColor: '#0ea5e9',
+    backgroundColor: 'rgba(14, 165, 233, 0.1)',
   },
   filtersWrapper: {
-    paddingTop: 16,
-    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingHorizontal: 20,
   },
   filterSection: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   filterLabel: {
     color: '#94a3b8',
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 8,
+    fontSize: 11,
+    fontWeight: '800',
+    marginBottom: 10,
     textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   filterOptions: {
     flexDirection: 'row',
   },
   optionChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 14,
     backgroundColor: '#1e293b',
-    marginRight: 8,
+    marginRight: 10,
     borderWidth: 1,
     borderColor: '#334155',
   },
   optionChipActive: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#60a5fa',
+    backgroundColor: '#0ea5e9',
+    borderColor: '#38bdf8',
+    shadowColor: '#0ea5e9',
+    shadowOpacity: 0.4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
   },
   optionChipText: {
-    color: '#cbd5e1',
-    fontSize: 13,
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: '600',
   },
   optionChipTextActive: {
     color: '#ffffff',
-    fontWeight: 'bold',
   },
   resetFiltersBtn: {
     alignSelf: 'center',
-    marginTop: 8,
+    marginTop: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(14, 165, 233, 0.1)',
+    borderRadius: 10,
   },
   resetFiltersText: {
-    color: '#3b82f6',
-    fontSize: 14,
-    fontWeight: '500',
+    color: '#0ea5e9',
+    fontSize: 13,
+    fontWeight: '700',
   },
   centered: {
     flex: 1,
@@ -429,61 +456,77 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     marginTop: 16,
     fontSize: 16,
+    fontWeight: '500',
   },
   noResultsTitle: {
     color: '#ffffff',
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '800',
     marginTop: 24,
+    textAlign: 'center',
   },
   noResultsSubtitle: {
     color: '#64748b',
     fontSize: 16,
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 24,
+    marginTop: 10,
+    marginBottom: 30,
+    lineHeight: 22,
   },
   resetSearchBtn: {
-    backgroundColor: '#3b82f6',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+    backgroundColor: '#0ea5e9',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 16,
+    shadowColor: '#0ea5e9',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 10,
+    elevation: 6,
   },
   resetSearchBtnText: {
     color: '#ffffff',
-    fontWeight: 'bold',
+    fontWeight: '800',
     fontSize: 16,
   },
   scrollContent: {
     paddingBottom: 40,
+    paddingTop: 10,
   },
   resultsHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   resultsCount: {
-    color: '#94a3b8',
-    fontSize: 14,
-    fontWeight: '500',
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   grid: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
   productCard: {
-    width: (width - 48) / 2,
+    width: (width - 55) / 2,
     backgroundColor: '#0f172a',
-    borderRadius: 16,
-    marginBottom: 16,
+    borderRadius: 24,
+    marginBottom: 20,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#1e293b',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
   },
   imageContainer: {
     width: '100%',
-    height: 140,
+    height: 160,
     backgroundColor: '#1e293b',
     position: 'relative',
   },
@@ -496,69 +539,86 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  lowStockBadge: {
+  badgeContainer: {
     position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    top: 10,
+    left: 10,
+    right: 10,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+  lowStockBadge: {
+    backgroundColor: '#f43f5e',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
+    shadowColor: '#f43f5e',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   lowStockText: {
     color: '#ffffff',
-    fontSize: 8,
-    fontWeight: 'bold',
+    fontSize: 9,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  cityBadge: {
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  cityText: {
+    color: '#cbd5e1',
+    fontSize: 9,
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   cardInfo: {
-    padding: 12,
+    padding: 15,
   },
   productName: {
     color: '#ffffff',
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '800',
     marginBottom: 4,
   },
   sellerName: {
-    color: '#94a3b8',
-    fontSize: 10,
-    marginBottom: 8,
+    color: '#64748b',
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 12,
   },
   priceRow: {
     flexDirection: 'row',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
   },
-  priceText: {
-    color: '#3b82f6',
-    fontSize: 16,
-    fontWeight: 'bold',
+  priceCurrency: {
+    color: '#0ea5e9',
+    fontSize: 14,
+    fontWeight: '800',
+    marginRight: 2,
   },
-  cityBadge: {
-    backgroundColor: 'rgba(148, 163, 184, 0.1)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  cityText: {
-    color: '#94a3b8',
-    fontSize: 9,
-    fontWeight: '500',
-  },
-  viewDetailBtn: {
-    backgroundColor: '#3b82f6',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  viewDetailBtnText: {
+  priceValue: {
     color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginRight: 4,
+    fontSize: 18,
+    fontWeight: '900',
+    flex: 1,
+  },
+  addIconBtn: {
+    backgroundColor: '#0ea5e9',
+    width: 32,
+    height: 32,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#0ea5e9',
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 4,
   },
 });

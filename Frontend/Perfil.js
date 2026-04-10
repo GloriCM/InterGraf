@@ -155,14 +155,6 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate }) {
           <TouchableOpacity onPress={() => onNavigate ? onNavigate('dashboard') : onBack()}>
             <Ionicons name="home" size={22} color="#f8fafc" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
-          
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
-            <Ionicons name="layers-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
-            <Ionicons name="cube-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
 
           <TouchableOpacity>
             <Ionicons name="person-circle" size={30} color="#0ea5e9" style={{ marginHorizontal: 8 }} />
@@ -170,6 +162,10 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate }) {
 
           <TouchableOpacity onPress={() => onNavigate && onNavigate('mensajeria')}>
             <Ionicons name="chatbubble-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('pedidos_vendedor')}>
+            <Ionicons name="receipt-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => {

@@ -22,7 +22,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 
-export default function Mensajeria({ onBack, onNavigate, userData, initialRecipientId, onClearInitialRecipient }) {
+export default function Mensajeria({ onBack, onNavigate, userData, initialRecipientId, initialProductContext, onClearInitialRecipient }) {
   // Estado para la vista: 'lista' (Conversaciones) o 'chat' (Mensajes de un pedido)
   const [vistaActiva, setVistaActiva] = useState('lista');
   const [conversacionActiva, setConversacionActiva] = useState(null);
@@ -92,56 +92,81 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
 
   // Nuevo efecto para gestionar el inicio de un chat directo si viene de DetalleProducto
   useEffect(() => {
-    if (initialRecipientId && conversaciones.length > 0) {
-      // Buscar si ya existe una conversación con ese usuario
-      const convExistente = conversaciones.find(c => 
-        c.comprador_id === initialRecipientId || c.vendedor_id === initialRecipientId
-      );
-
-      if (convExistente) {
-        abrirConversacion(convExistente);
-      } else {
-        // Si no existe, preparamos el modal de nueva conversación con ese usuario
-        // O mejor aún, la intentamos crear automáticamente
-        prepararChatDirecto(initialRecipientId);
+    if (initialRecipientId) {
+      // Pre-llenar mensaje si hay contexto de producto
+      if (initialProductContext) {
+        setNuevoMensaje(`Hola, me interesa este producto: ${initialProductContext.nombre || initialProductContext.identificador}`);
       }
-      
-      // Limpiamos el estado en App.js para que no se repita
-      if (onClearInitialRecipient) onClearInitialRecipient();
+
+      // Esperar a que las conversaciones se carguen antes de decidir
+      if (conversaciones.length > 0) {
+        // Buscar si ya existe una conversación con ese usuario (ya sea como comprador o vendedor)
+        const convExistente = conversaciones.find(c => 
+          c.comprador_id === initialRecipientId || c.vendedor_id === initialRecipientId
+        );
+
+        if (convExistente) {
+          abrirConversacion(convExistente);
+        } else {
+          prepararChatDirecto(initialRecipientId);
+        }
+        
+        // Limpiamos el estado en App.js para que no se repita
+        if (onClearInitialRecipient) onClearInitialRecipient();
+      } else if (!loading) {
+        // Si no hay conversaciones cargadas aún, pedimos un chat directo (que buscará en DB)
+        prepararChatDirecto(initialRecipientId);
+        if (onClearInitialRecipient) onClearInitialRecipient();
+      }
     }
   }, [initialRecipientId, conversaciones]);
 
   const prepararChatDirecto = async (recipientId) => {
+    if (!userData?.auth_user_id) return;
     setLoading(true);
     try {
-      // Buscar el nombre del destinatario para mostrarlo
+      // 1. Verificar PRIMERO en DB si ya existe la conversación para evitar errores de .single() o duplicados
+      const { data: convExistente, error: checkError } = await supabase
+        .from('conversaciones')
+        .select('*')
+        .or(`and(comprador_id.eq.${userData.auth_user_id},vendedor_id.eq.${recipientId}),and(comprador_id.eq.${recipientId},vendedor_id.eq.${userData.auth_user_id})`)
+        .maybeSingle();
+
+      if (convExistente) {
+        fetchConversaciones();
+        abrirConversacion(convExistente);
+        return;
+      }
+
+      // 2. Si no existe, buscar el nombre del destinatario para validación (opcional pero ayuda)
       const { data: user, error: userError } = await supabase
         .from('Usuarios_Registrados')
         .select('razon_social, auth_user_id')
         .eq('auth_user_id', recipientId)
-        .single();
+        .maybeSingle();
       
       if (userError) throw userError;
 
-      // Crear la conversación directamente
-      const { data: newConv, error: convError } = await supabase
+      // 3. Crear la conversación directamente
+      const { data: newConvData, error: convError } = await supabase
         .from('conversaciones')
         .insert([{
           comprador_id: userData.auth_user_id,
           vendedor_id: recipientId,
           pedido_id: null
         }])
-        .select()
-        .single();
+        .select();
 
       if (convError) throw convError;
+
+      const newConv = newConvData[0];
 
       // Abrir el nuevo chat
       fetchConversaciones();
       abrirConversacion(newConv);
     } catch (error) {
       console.error('Error al iniciar chat directo:', error.message);
-      Alert.alert('Error', 'No se pudo iniciar el chat con el proveedor.');
+      Alert.alert('Error', 'No se pudo iniciar el chat con el proveedor. Es posible que ya exista una conversación activa o haya un problema de conexión.');
     } finally {
       setLoading(false);
     }
@@ -482,14 +507,6 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
           <TouchableOpacity onPress={() => onNavigate ? onNavigate('dashboard') : onBack()}>
             <Ionicons name="home" size={22} color="#f8fafc" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
-          
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
-            <Ionicons name="layers-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
-            <Ionicons name="cube-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
 
           <TouchableOpacity onPress={() => onNavigate && onNavigate('perfil')}>
             <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
@@ -497,6 +514,10 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
 
           <TouchableOpacity>
             <Ionicons name="chatbubble" size={24} color="#0ea5e9" style={{ marginHorizontal: 8 }} />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('pedidos_vendedor')}>
+            <Ionicons name="receipt-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => onNavigate && onNavigate('login')}>
