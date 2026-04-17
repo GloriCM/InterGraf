@@ -17,13 +17,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
 
+import Header from './Header';
+
 const { width } = Dimensions.get('window');
 
 /**
  * COMPONENTE: DETALLE DEL PRODUCTO
  * Muestra la información completa de un suministro y permite añadir al carrito o contactar al vendedor.
  */
-export default function DetalleProducto({ userData, producto, onBack, onNavigate, onAddToCart }) {
+export default function DetalleProducto({ userData, producto, onBack, onNavigate, onAddToCart, onToggleMenu }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [cantidad, setCantidad] = useState(producto.cantidad_minima || 1);
   const [enviando, setEnviando] = useState(false);
@@ -129,13 +131,8 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      {/* HEADER FLOTANTE */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.circleBtn}>
-          <Ionicons name="arrow-back" size={24} color="#ffffff" />
-        </TouchableOpacity>
-        <View style={{ width: 44 }} /> 
-      </View>
+      {/* HEADER MINIMALISTA */}
+      <Header onMenuPress={onToggleMenu} />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* CARRUSEL DE IMÁGENES */}

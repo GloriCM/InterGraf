@@ -19,13 +19,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
 
+import Header from './Header';
+
 const { width } = Dimensions.get('window');
 
 // --- ELIMINAR O COMENTAR LA VERSIÓN EXTERNA DEL COMPONENTE ---
 // Se moverá dentro de Inventario para mejor acceso a contexto
 
 
-export default function Inventario({ userData, onBack, onNavigate, onSelectProduct, viewMode = 'vendedor' }) {
+export default function Inventario({ userData, onBack, onNavigate, onSelectProduct, viewMode = 'vendedor', onToggleMenu }) {
   // --- SUB-COMPONENTE PARA EL CARRUSEL DE IMÁGENES ---
   const ProductCarousel = ({ imagenes }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -305,40 +307,8 @@ export default function Inventario({ userData, onBack, onNavigate, onSelectProdu
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* HEADER DE NAVEGACIÓN */}
-      <View style={styles.header}>
-        <View style={styles.headerIcons}>
-          {/* Logo Pequeño */}
-          <View style={{ alignItems: 'center', marginRight: 15 }}>
-            <Ionicons name="aperture" size={20} color="#0ea5e9" />
-            <Text style={{ fontSize: 6, color: '#0ea5e9', fontWeight: 'bold' }}>INTERGEA</Text>
-          </View>
-
-          <TouchableOpacity onPress={() => onNavigate ? onNavigate('dashboard') : onBack()}>
-            <Ionicons name="home" size={22} color="#f8fafc" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
-            <Ionicons name="layers" size={24} color="#0ea5e9" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('perfil')}>
-            <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('mensajeria')}>
-            <Ionicons name="chatbubble-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('pedidos_vendedor')}>
-            <Ionicons name="receipt-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('login')}>
-            <Ionicons name="log-out-outline" size={26} color="#f8fafc" style={{ marginLeft: 8 }} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      {/* HEADER MINIMALISTA */}
+      <Header onMenuPress={onToggleMenu} />
 
       <Text style={styles.title}>{verHistorial ? "Historial de Ajustes" : "Bodega de Insumos"}</Text>
 

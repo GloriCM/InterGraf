@@ -17,13 +17,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
 
+import Header from './Header';
+
 const { width } = Dimensions.get('window');
 
 /**
  * COMPONENTE: VISTA COMPRADOR
  * Permite buscar y explorar productos de otros proveedores.
  */
-export default function Comprador({ userData, onBack, onNavigate, cart, setCart }) {
+export default function Comprador({ userData, onBack, onNavigate, cart, setCart, onToggleMenu }) {
   const [productos, setProductos] = useState([]);
   const [productosFiltrados, setProductosFiltrados] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -161,30 +163,7 @@ export default function Comprador({ userData, onBack, onNavigate, cart, setCart 
       
       {/* HEADER */}
       <View style={styles.header}>
-        <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => onBack()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#ffffff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Explorar Suministros</Text>
-          <TouchableOpacity 
-            style={styles.cartBtn}
-            onPress={() => onNavigate('pedidos_comprador')}
-          >
-            <Ionicons name="receipt-outline" size={26} color="#ffffff" />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.cartBtn}
-            onPress={() => onNavigate('resumen_carrito')}
-          >
-            <Ionicons name="cart-outline" size={26} color="#ffffff" />
-            {cart.length > 0 && (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{cart.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+        <Header onMenuPress={onToggleMenu} />
 
         {/* SEARCH BAR */}
         <View style={styles.searchContainer}>
