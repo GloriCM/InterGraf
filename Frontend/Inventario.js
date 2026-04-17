@@ -25,7 +25,7 @@ const { width } = Dimensions.get('window');
 // Se moverá dentro de Inventario para mejor acceso a contexto
 
 
-export default function Inventario({ userData, onBack, onNavigate }) {
+export default function Inventario({ userData, onBack, onNavigate, onSelectProduct, viewMode = 'vendedor' }) {
   // --- SUB-COMPONENTE PARA EL CARRUSEL DE IMÁGENES ---
   const ProductCarousel = ({ imagenes }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -82,10 +82,14 @@ export default function Inventario({ userData, onBack, onNavigate }) {
     const fetchProductos = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('productos')
-          .select('*')
-          .eq('usuario_id', userData?.id || null);
+        let query = supabase.from('productos').select('*');
+        
+        // Si es vendedor, filtramos por sus productos. Si es comprador, vemos TODO.
+        if (viewMode === 'vendedor') {
+          query = query.eq('usuario_id', userData?.id || userData?.auth_user_id);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           throw error;
@@ -129,12 +133,12 @@ export default function Inventario({ userData, onBack, onNavigate }) {
       }
     };
 
-    if (userData?.id) {
+    if (viewMode === 'comprador' || userData?.id || userData?.auth_user_id) {
       fetchProductos();
     } else {
       setLoading(false);
     }
-  }, [userData]);
+  }, [userData, viewMode]);
 
   // Historial de movimientos
   const [historial, setHistorial] = useState([]);
@@ -336,7 +340,7 @@ export default function Inventario({ userData, onBack, onNavigate }) {
         </View>
       </View>
 
-      <Text style={styles.title}>{verHistorial ? "Historial de Ajustes" : "Inventario"}</Text>
+      <Text style={styles.title}>{verHistorial ? "Historial de Ajustes" : "Bodega de Insumos"}</Text>
 
       {/* VISTA PRINCIPAL (Inventario o Historial) */}
       <ScrollView contentContainerStyle={styles.scrollContent} style={styles.scrollView}>
@@ -368,7 +372,12 @@ export default function Inventario({ userData, onBack, onNavigate }) {
                 </View>
 
                 {/* CARRUSEL DE IMÁGENES */}
-                <ProductCarousel imagenes={item.imagenes} />
+                <TouchableOpacity 
+                   activeOpacity={viewMode === 'comprador' ? 0.9 : 1}
+                   onPress={() => viewMode === 'comprador' && onSelectProduct && onSelectProduct(item)}
+                >
+                  <ProductCarousel imagenes={item.imagenes} />
+                </TouchableOpacity>
                 
                 <View style={styles.gridContainer}>
                   <View style={styles.gridBox}>
@@ -389,15 +398,25 @@ export default function Inventario({ userData, onBack, onNavigate }) {
                   </View>
                 </View>
 
-                {/* BOTÓN DE AJUSTAR STOCK (Principal) */}
+                {/* BOTÓN DE ACCIÓN SEGÚN ROL */}
                 <View style={{ marginTop: 15 }}>
-                  <TouchableOpacity 
-                    style={[styles.btnAccion, { backgroundColor: '#cbd5e1' }]} 
-                    onPress={() => abrirModalDeAjuste(item)}
-                  >
-                    <Ionicons name="stats-chart-outline" size={16} color="#0f172a" />
-                    <Text style={styles.btnAccionText}>Modificar Stock</Text>
-                  </TouchableOpacity>
+                  {viewMode === 'vendedor' ? (
+                    <TouchableOpacity 
+                      style={[styles.btnAccion, { backgroundColor: '#cbd5e1' }]} 
+                      onPress={() => abrirModalDeAjuste(item)}
+                    >
+                      <Ionicons name="stats-chart-outline" size={16} color="#0f172a" />
+                      <Text style={styles.btnAccionText}>Modificar Stock</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity 
+                      style={[styles.btnAccion, { backgroundColor: '#0ea5e9' }]} 
+                      onPress={() => onSelectProduct && onSelectProduct(item)}
+                    >
+                      <Ionicons name="cart-outline" size={16} color="#ffffff" />
+                      <Text style={[styles.btnAccionText, { color: '#ffffff' }]}>Ver Detalles / Contactar</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             );
@@ -556,13 +575,15 @@ export default function Inventario({ userData, onBack, onNavigate }) {
         </Modal>
       )}
 
-      {/* Botón Flotante para Crear Producto */}
-      <TouchableOpacity 
-        style={styles.fab} 
-        onPress={() => onNavigate && onNavigate('crear_producto')}
-      >
-        <Ionicons name="add" size={32} color="#ffffff" />
-      </TouchableOpacity>
+      {/* Botón Flotante para Crear Producto (Solo Vendedor) */}
+      {viewMode === 'vendedor' && (
+        <TouchableOpacity 
+          style={styles.fab} 
+          onPress={() => onNavigate && onNavigate('crear_producto')}
+        >
+          <Ionicons name="add" size={32} color="#ffffff" />
+        </TouchableOpacity>
+      )}
 
     </SafeAreaView>
   );

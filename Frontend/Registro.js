@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, Platform } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, Platform, KeyboardAvoidingView } from 'react-native';
 import { AntDesign, Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import { colombianCities } from './cities';
 import { supabase } from './supabase';
+import * as Linking from 'expo-linking';
 
 export default function Registro({ onBack, onRegistrationSuccess }) {
   const [razonSocial, setRazonSocial] = useState('');
@@ -19,6 +20,8 @@ export default function Registro({ onBack, onRegistrationSuccess }) {
   const [descripcion, setDescripcion] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [confirmarContrasena, setConfirmarContrasena] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [logoUri, setLogoUri] = useState(null);
   const [isChecked, setIsChecked] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -164,6 +167,9 @@ export default function Registro({ onBack, onRegistrationSuccess }) {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: correo,
       password: contrasena,
+      options: {
+        redirectTo: Platform.OS === 'web' ? 'http://localhost:8081/auth/callback' : 'intergea://auth/callback',
+      },
     });
 
     if (authError) {
@@ -178,6 +184,15 @@ export default function Registro({ onBack, onRegistrationSuccess }) {
 
     // 4. Insertar los metadatos de la empresa en nuestra tabla, vinculando con el UUID de Auth
     const authUserId = authData.user?.id;
+
+    // VALIDACIÓN CRÍTICA v1.4.5: Supabase devuelve user nulo si el correo ya existe por privacidad
+    if (!authUserId) {
+      setLoading(false);
+      const msg = "Este correo ya se encuentra registrado o tiene una verificación pendiente. Por favor intenta iniciar sesión o solicita recuperar tu contraseña.";
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert("Registro Duplicado", msg);
+      return;
+    }
 
     const { data, error } = await supabase
       .from('Usuarios_Registrados')
@@ -200,12 +215,11 @@ export default function Registro({ onBack, onRegistrationSuccess }) {
     setLoading(false);
 
     if (error) {
-      // Rollback: si el insert falla, eliminar el usuario de Auth para poder reintentar
-      if (authUserId) {
-        await supabase.auth.admin.deleteUser(authUserId).catch(() => {});
-      }
+      setLoading(false);
       await supabase.auth.signOut();
-      alert("Error al registrar empresa: " + error.message);
+      const dbErrorMsg = "Error al completar el registro en la base de datos: " + error.message;
+      if (Platform.OS === 'web') window.alert(dbErrorMsg);
+      else Alert.alert("Error de Registro", dbErrorMsg);
     } else {
       // Cerrar la sesión de Auth (el usuario debe verificar su correo primero)
       await supabase.auth.signOut();
@@ -216,7 +230,12 @@ export default function Registro({ onBack, onRegistrationSuccess }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
-      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
           <View style={styles.logoContainer}>
             <Ionicons name="aperture" size={40} color="#0891b2" />
@@ -257,8 +276,12 @@ export default function Registro({ onBack, onRegistrationSuccess }) {
               value={numeroDocumento}
               autoComplete="off"
               name={`nd_${Date.now()}`}
-              autoCapitalize="characters"
-              onChangeText={(text) => { setNumeroDocumento(text); setErrors({ ...errors, numeroDocumento: null }); }}
+              keyboardType="numeric"
+              onChangeText={(text) => { 
+                const cleaned = text.replace(/[^0-9]/g, '');
+                setNumeroDocumento(cleaned); 
+                setErrors({ ...errors, numeroDocumento: null }); 
+              }}
             />
             {errors.numeroDocumento && <Text style={styles.errorText}>{errors.numeroDocumento}</Text>}
           </View>
@@ -353,27 +376,37 @@ export default function Registro({ onBack, onRegistrationSuccess }) {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Crear Contraseña:</Text>
-            <TextInput
-              style={[styles.input, errors.contrasena && styles.inputError]}
-              value={contrasena}
-              secureTextEntry
-              autoComplete="off"
-              name={`pw_${Date.now()}`}
-              onChangeText={(text) => { setContrasena(text); setErrors({ ...errors, contrasena: null }); }}
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                value={contrasena}
+                secureTextEntry={!showPassword}
+                autoComplete="off"
+                name={`pw_${Date.now()}`}
+                onChangeText={(text) => { setContrasena(text); setErrors({ ...errors, contrasena: null }); }}
+              />
+              <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#475569" />
+              </TouchableOpacity>
+            </View>
             {errors.contrasena && <Text style={styles.errorText}>{errors.contrasena}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Confirmar Contraseña:</Text>
-            <TextInput
-              style={[styles.input, errors.confirmarContrasena && styles.inputError]}
-              value={confirmarContrasena}
-              secureTextEntry
-              autoComplete="off"
-              name={`cpw_${Date.now()}`}
-              onChangeText={(text) => { setConfirmarContrasena(text); setErrors({ ...errors, confirmarContrasena: null }); }}
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                value={confirmarContrasena}
+                secureTextEntry={!showConfirmPassword}
+                autoComplete="off"
+                name={`cpw_${Date.now()}`}
+                onChangeText={(text) => { setConfirmarContrasena(text); setErrors({ ...errors, confirmarContrasena: null }); }}
+              />
+              <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#475569" />
+              </TouchableOpacity>
+            </View>
             {errors.confirmarContrasena && <Text style={styles.errorText}>{errors.confirmarContrasena}</Text>}
           </View>
 
@@ -407,8 +440,12 @@ export default function Registro({ onBack, onRegistrationSuccess }) {
           <TouchableOpacity onPress={onBack}>
             <Text style={styles.backButtonText}>Volver al Login</Text>
           </TouchableOpacity>
+
+          {/* Etiqueta de versión para control de actualizaciones */}
+          <Text style={styles.versionTag}>v1.4.5 - InterGea (Un-delete Fix)</Text>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -425,10 +462,47 @@ const styles = StyleSheet.create({
   label: { color: '#ffffff', fontSize: 12, marginBottom: 5 },
   input: { backgroundColor: '#cbd5e1', borderRadius: 25, height: 40, paddingHorizontal: 20, fontSize: 16, color: '#0f172a' },
   inputError: { borderColor: '#ef4444', borderWidth: 1 },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#cbd5e1',
+    borderRadius: 25,
+    height: 40,
+  },
+  passwordInput: {
+    flex: 1,
+    height: 40,
+    paddingHorizontal: 20,
+    fontSize: 16,
+    color: '#0f172a',
+  },
+  eyeButton: {
+    paddingHorizontal: 15,
+    height: '100%',
+    justifyContent: 'center',
+  },
   errorText: { color: '#ef4444', fontSize: 10, marginTop: 3, marginLeft: 10 },
   successText: { color: '#10b981', fontSize: 10, marginBottom: 10 },
-  pickerContainer: { backgroundColor: '#cbd5e1', borderRadius: 25, height: 40, justifyContent: 'center', overflow: 'hidden' },
-  picker: { height: 40, color: '#0f172a' },
+  pickerContainer: { 
+    backgroundColor: '#cbd5e1', 
+    borderRadius: 25, 
+    height: 50, 
+    justifyContent: 'center', 
+    overflow: 'hidden',
+    paddingHorizontal: 10 
+  },
+  picker: { 
+    height: 50, 
+    color: '#0f172a',
+    backgroundColor: 'transparent'
+  },
+  versionTag: {
+    marginTop: 20,
+    color: '#475569',
+    fontSize: 10,
+    fontWeight: '300',
+    textAlign: 'center'
+  },
   uploadButton: { backgroundColor: '#e2e8f0', width: 60, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
   termsContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 25, paddingVertical: 10, paddingHorizontal: 15 },
   termsMaster: { alignItems: 'center', width: '100%' },

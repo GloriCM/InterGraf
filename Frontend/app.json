@@ -1,10 +1,11 @@
 {
   "expo": {
-    "name": "RegistroApp",
-    "slug": "RegistroApp",
-    "version": "1.0.0",
+    "name": "InterGea",
+    "slug": "intergea-movil",
+    "scheme": "intergea",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/LOGO-Sin-Letras.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -15,15 +16,40 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.gloricm.intergea",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
+        "foregroundImage": "./assets/LOGO-Sin-Letras.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "versionCode": 2
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/70540143-c4ee-4a77-b11c-2a268623d021"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.1.20"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "owner": "juanmarin99",
+      "eas": {
+        "projectId": "70540143-c4ee-4a77-b11c-2a268623d021"
+      }
+    },
+    "owner": "juanmarin99"
   }
 }

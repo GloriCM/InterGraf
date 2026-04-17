@@ -95,14 +95,20 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
   };
 
   const contactarVendedor = (customMessage = null) => {
-    // Navegamos a mensajería pasando el AUTH_ID del vendedor y el contexto del producto
+    // Si customMessage no es un string (ej. es un objeto de evento de React), lo ponemos como null
+    const finalMessage = typeof customMessage === 'string' ? customMessage : null;
+    
     const sellerAuthId = producto.Usuarios_Registrados?.auth_user_id;
+    console.log("DEBUG: Intentando contactar al vendedor con AuthID:", sellerAuthId);
+    console.log("DEBUG: Contexto del producto:", producto.nombre);
     
     if (!sellerAuthId) {
+      const errorMsg = "No se pudo identificar el ID de autenticación del vendedor.";
+      console.error("DEBUG:", errorMsg, "Producto Data:", JSON.stringify(producto));
       if (Platform.OS === 'web') {
-        window.alert("Error: No se pudo identificar el ID de autenticación del vendedor.");
+        window.alert("Error: " + errorMsg);
       } else {
-        Alert.alert("Error", "No se pudo identificar al vendedor.");
+        Alert.alert("Error", errorMsg);
       }
       return;
     }
@@ -110,7 +116,7 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
     onNavigate('mensajeria', { 
       initialRecipient: sellerAuthId,
       initialProduct: producto,
-      initialMessage: customMessage
+      initialMessage: finalMessage
     });
   };
 

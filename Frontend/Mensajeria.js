@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 
 export default function Mensajeria({ onBack, onNavigate, userData, initialRecipientId, initialProductContext, initialMessageText, onClearInitialRecipient }) {
@@ -27,8 +27,15 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
   const [vistaActiva, setVistaActiva] = useState('lista');
   const [conversacionActiva, setConversacionActiva] = useState(null);
   const [nuevoMensaje, setNuevoMensaje] = useState('');
+  const [procesadoId, setProcesadoId] = useState(null); // Nuevo: Para evitar bucles infinitos con initialRecipientId
   const [mensajes, setMensajes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const loadingRef = React.useRef(false); // Ref para rastrear loading sin stale closures
+  
+  // Actualizar ref cuando cambie el estado
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
 
   // Estados para la nueva conversación
   const [modalNuevaConvVisible, setModalNuevaConvVisible] = useState(false);
@@ -46,19 +53,28 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
   const [conversaciones, setConversaciones] = useState([]);
 
   // 1. Cargar conversaciones en las que participa el usuario
-  const fetchConversaciones = async () => {
+  const fetchConversaciones = async (isSilent = false) => {
     if (!userData?.auth_user_id) return;
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     try {
-      // Filtrar chats no borrados por el usuario actual
+      // Simplificamos la consulta para mayor compatibilidad con Web
+      // Primero obtenemos todos los chats donde participamos
       const { data, error } = await supabase
         .from('conversaciones')
         .select('*')
-        .or(`and(comprador_id.eq.${userData.auth_user_id},borrado_comprador.eq.false),and(vendedor_id.eq.${userData.auth_user_id},borrado_vendedor.eq.false)`)
+        .or(`comprador_id.eq.${userData.auth_user_id},vendedor_id.eq.${userData.auth_user_id}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setConversaciones(data || []);
+
+      // Filtramos por borrado en JS para evitar la sintaxis compleja de AND/OR en la query que falla en Web
+      const chatsFiltrados = (data || []).filter(conv => {
+        if (conv.comprador_id === userData.auth_user_id) return !conv.borrado_comprador;
+        if (conv.vendedor_id === userData.auth_user_id) return !conv.borrado_vendedor;
+        return false;
+      });
+
+      setConversaciones(chatsFiltrados);
     } catch (error) {
       console.error('Error fetching conversaciones:', error.message);
     } finally {
@@ -69,71 +85,104 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
   useEffect(() => {
     fetchConversaciones();
 
-    // Suscribirse a cambios en la tabla de conversaciones (para nuevos chats o re-activaciones)
-    const canalConv = supabase
+    // Suscribirse a cambios en TIEMPO REAL
+    let canalConv = supabase
       .channel('public:conversaciones')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'conversaciones'
       }, (payload) => {
-        // Si el cambio involucra al usuario actual, recargar lista
         const conv = payload.new || payload.old;
         if (userData?.auth_user_id && (conv.comprador_id === userData.auth_user_id || conv.vendedor_id === userData.auth_user_id)) {
+          console.log("DEBUG: Cambio detectado en conversaciones Realtime");
           fetchConversaciones();
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log("DEBUG: Estado canal conversaciones:", status);
+      });
+
+    // RESPALDO DE POLLING: Solo en Web para asegurar llegada si el socket parpadea
+    let pollInterval = null;
+    if (Platform.OS === 'web') {
+      console.log("DEBUG: Iniciando Polling de respaldo (10s) para Web");
+      pollInterval = setInterval(() => {
+        // Solo recargamos si no hay una carga en curso (usando la ref para evitar stale closures)
+        if (!loadingRef.current) {
+          fetchConversaciones(true); // Carga SILENCIOSA
+        }
+      }, 10000);
+    }
 
     return () => {
-      supabase.removeChannel(canalConv);
+      if (canalConv) supabase.removeChannel(canalConv);
+      if (pollInterval) clearInterval(pollInterval);
     };
   }, [userData]);
 
   // Nuevo efecto para gestionar el inicio de un chat directo si viene de DetalleProducto
   useEffect(() => {
-    if (initialRecipientId) {
-      // Pre-llenar mensaje si se proporciona uno específico
-      if (initialMessageText) {
-        setNuevoMensaje(initialMessageText);
-      } else if (initialProductContext) {
-        // Fallback al mensaje por defecto de producto
-        setNuevoMensaje(`Hola, me interesa este producto: ${initialProductContext.nombre || initialProductContext.identificador}`);
-      }
+    // Si no tenemos ID, el usuario no está cargado o YA PROCESAMOS este ID, detenemos todo.
+    if (!initialRecipientId || !userData?.auth_user_id || initialRecipientId === procesadoId) return;
 
-      // Esperar a que las conversaciones se carguen antes de decidir
-      if (conversaciones.length > 0) {
-        // Buscar si ya existe una conversación con ese usuario (ya sea como comprador o vendedor)
-        const convExistente = conversaciones.find(c => 
-          c.comprador_id === initialRecipientId || c.vendedor_id === initialRecipientId
-        );
-
-        if (convExistente) {
-          abrirConversacion(convExistente);
-        } else {
-          prepararChatDirecto(initialRecipientId);
-        }
-        
-        // Limpiamos el estado en App.js para que no se repita
-        if (onClearInitialRecipient) onClearInitialRecipient();
-      } else if (!loading) {
-        // Si no hay conversaciones cargadas aún, pedimos un chat directo (que buscará en DB)
-        prepararChatDirecto(initialRecipientId);
-        if (onClearInitialRecipient) onClearInitialRecipient();
-      }
+    console.log("DEBUG [v1.4.0]: Procesando ID nuevo para evitar bucles:", initialRecipientId);
+    setProcesadoId(initialRecipientId); // Marcar como en proceso inmediatamente
+    
+    // 1. Pre-llenar mensaje
+    if (initialMessageText && typeof initialMessageText === 'string') {
+      setNuevoMensaje(initialMessageText);
+    } else if (initialProductContext) {
+      setNuevoMensaje(`Hola, me interesa este producto: ${initialProductContext.nombre || initialProductContext.identificador}`);
     }
-  }, [initialRecipientId, conversaciones]);
+
+    // 2. Lógica de apertura
+    const tratarDeAbrirChat = async () => {
+      // Si la lista está cargando, esperamos la lista una vez (el cambio de loading volverá a disparar esto pero procesadoId lo frenará si es el mismo)
+      if (loading && conversaciones.length === 0) {
+        console.log("DEBUG: Esperando carga inicial de chats...");
+        // Reseteamos procesadoId si queremos re-intentar al terminar carga, o mejor dejamos que termine.
+        return; 
+      }
+
+      const compId = userData.auth_user_id;
+      const convExistente = conversaciones.find(c => 
+        (c.comprador_id === compId && c.vendedor_id === initialRecipientId) ||
+        (c.comprador_id === initialRecipientId && c.vendedor_id === compId)
+      );
+
+      if (convExistente) {
+        console.log("DEBUG: Abriendo chat existente ID:", convExistente.id);
+        abrirConversacion(convExistente);
+        // Limpiamos los parámetros globales tras éxito para que no haya rastro en App.js
+        setTimeout(() => onClearInitialRecipient && onClearInitialRecipient(), 1000);
+      } else {
+        console.log("DEBUG: Creando/Buscando chat en servidor...");
+        await prepararChatDirecto(initialRecipientId);
+        setTimeout(() => onClearInitialRecipient && onClearInitialRecipient(), 1000);
+      }
+    };
+
+    tratarDeAbrirChat();
+  }, [initialRecipientId, procesadoId, conversaciones.length, loading, userData?.auth_user_id]);
 
   const prepararChatDirecto = async (recipientId) => {
     if (!userData?.auth_user_id) return;
     setLoading(true);
     try {
-      // 1. Verificar PRIMERO en DB si ya existe la conversación para evitar errores de .single() o duplicados
-      const { data: convExistente, error: checkError } = await supabase
+      // Verificamos si ya existe con una query OR simple (v1.3.5)
+      const { data: convs, error: checkError } = await supabase
         .from('conversaciones')
         .select('*')
-        .or(`and(comprador_id.eq.${userData.auth_user_id},vendedor_id.eq.${recipientId}),and(comprador_id.eq.${recipientId},vendedor_id.eq.${userData.auth_user_id})`)
-        .maybeSingle();
+        .or(`comprador_id.eq.${userData.auth_user_id},vendedor_id.eq.${userData.auth_user_id}`);
+
+      if (checkError) throw checkError;
+
+      // Encontramos la exacta en JS
+      const convExistente = (convs || []).find(c => 
+        (c.comprador_id === userData.auth_user_id && c.vendedor_id === recipientId) ||
+        (c.comprador_id === recipientId && c.vendedor_id === userData.auth_user_id)
+      );
 
       if (convExistente) {
         fetchConversaciones();
@@ -175,12 +224,12 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
     }
   };
 
-  // 2. Gestionar mensajes y Realtime de la conversación activa
-  useEffect(() => {
-    if (!conversacionActiva || vistaActiva !== 'chat') return;
-
-    // A. Cargar mensajes históricos
-    const fetchMensajes = async () => {
+  // 2. Cargar mensajes de una conversación específica
+  const fetchMensajes = async (isSilent = false) => {
+    if (!conversacionActiva || !userData?.auth_user_id) return;
+    if (!isSilent) setLoading(true);
+    
+    try {
       // Determinar si el usuario tiene una fecha de borrado para esta conv
       const esComprador = conversacionActiva.comprador_id === userData.auth_user_id;
       const fechaBorrado = esComprador ? conversacionActiva.fecha_borrado_comprador : conversacionActiva.fecha_borrado_vendedor;
@@ -196,13 +245,23 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
 
       const { data, error } = await query.order('created_at', { ascending: true });
 
+      if (error) throw error;
       if (data) setMensajes(data);
-    };
+    } catch (error) {
+      console.error('Error fetching mensajes:', error.message);
+    } finally {
+      if (!isSilent) setLoading(false);
+    }
+  };
 
-    fetchMensajes();
+  // 3. Gestionar mensajes y Realtime de la conversación activa
+  useEffect(() => {
+    if (!conversacionActiva || vistaActiva !== 'chat') return;
+
+    fetchMensajes(); // Carga inicial NO silenciosa
 
     // B. Suscribirse a mensajes nuevos en TIEMPO REAL
-    const canal = supabase
+    const canalMesa = supabase
       .channel(`chat_${conversacionActiva.id}`)
       .on('postgres_changes', {
         event: 'INSERT',
@@ -210,18 +269,33 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
         table: 'mensajes',
         filter: `conversacion_id=eq.${conversacionActiva.id}`
       }, (payload) => {
+        console.log("DEBUG: Mensaje recibido vía Realtime");
         setMensajes((current) => [...current, payload.new]);
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`DEBUG: Estado canal chat_${conversacionActiva.id}:`, status);
+      });
+
+    // RESPALDO DE POLLING PARA MENSAJES (Web)
+    let msgPollInterval = null;
+    if (Platform.OS === 'web') {
+      msgPollInterval = setInterval(() => {
+        if (!loadingRef.current) {
+          fetchMensajes(true); // Carga SILENCIOSA
+        }
+      }, 5000); // Polling más rápido (5s) cuando estamos dentro de un chat
+    }
 
     return () => {
-      supabase.removeChannel(canal);
+      supabase.removeChannel(canalMesa);
+      if (msgPollInterval) clearInterval(msgPollInterval);
     };
   }, [conversacionActiva, vistaActiva]);
 
   const abrirConversacion = (conv) => {
+    console.log("DEBUG: abriendoConversacion -> ID:", conv.id);
     setConversacionActiva(conv);
-    setMensajes([]); // Limpiar previo mientras carga
+    setMensajes([]); 
     setVistaActiva('chat');
   };
 
@@ -314,10 +388,17 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
       setNuevoMensaje('');
       setAdjuntos([]);
 
-      // 3. Re-activar la conversación para el receptor
-      const esComprador = conversacionActiva.comprador_id === userData.auth_user_id;
-      const columnaReceptor = esComprador ? 'borrado_vendedor' : 'borrado_comprador';
-      await supabase.from('conversaciones').update({ [columnaReceptor]: false }).eq('id', conversacionActiva.id);
+      // 3. Re-activar la conversación para AMBOS (el remitente podría haberla borrado antes de enviar)
+      console.log("DEBUG: Restaurando estado activo de la conversación ID:", conversacionActiva.id);
+      await supabase.from('conversaciones').update({ 
+        borrado_comprador: false, 
+        borrado_vendedor: false,
+        fecha_borrado_comprador: null,
+        fecha_borrado_vendedor: null
+      }).eq('id', conversacionActiva.id);
+
+      // 4. Refrescar lista local para que el chat aparezca de nuevo si estaba filtrado
+      fetchConversaciones(true);
 
     } catch (error) {
       console.error('Error enviando mensaje (Detallado):', error);
@@ -537,7 +618,7 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
 
       {/* CONTENEDOR PRINCIPAL BASADO EN LA IMAGEN */}
       <View style={styles.cardContainer}>
-        {loading ? (
+        {(loading && conversaciones.length === 0) ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <ActivityIndicator size="large" color="#0ea5e9" />
             <Text style={{ color: '#94a3b8', marginTop: 10 }}>Cargando chats...</Text>
@@ -766,18 +847,19 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
                  editable={!enviando}
                />
                <TouchableOpacity 
-                 style={[styles.sendBtn, (nuevoMensaje.trim() || adjuntos.length > 0) ? styles.sendBtnActive : null]} 
+                 style={[styles.sendBtn, ((String(nuevoMensaje || "").trim()) || adjuntos.length > 0) ? styles.sendBtnActive : null]} 
                  onPress={enviarMensaje}
-                 disabled={(!nuevoMensaje.trim() && adjuntos.length === 0) || enviando}
+                 disabled={(!(String(nuevoMensaje || "").trim()) && adjuntos.length === 0) || enviando}
                >
                  {enviando ? (
                    <ActivityIndicator size="small" color="#ffffff" />
                  ) : (
-                   <Ionicons name="send" size={20} color={(nuevoMensaje.trim() || adjuntos.length > 0) ? "#ffffff" : "#64748b"} />
+                   <Ionicons name="send" size={20} color={((String(nuevoMensaje || "").trim()) || adjuntos.length > 0) ? "#ffffff" : "#64748b"} />
                  )}
                </TouchableOpacity>
              </View>
-             <Text style={styles.charCount}>{nuevoMensaje.length}/300 caracteres</Text>
+             <Text style={styles.charCount}>{String(nuevoMensaje || "").length}/300 caracteres</Text>
+             <Text style={styles.versionTag}>v1.3.9 - InterGea (Crash Logic Guard)</Text>
            </KeyboardAvoidingView>
          )}
       </View>
@@ -1170,4 +1252,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
+  versionTag: {
+    color: '#334155',
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 5
+  }
 });

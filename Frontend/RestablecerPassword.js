@@ -1,15 +1,36 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView, StatusBar, Alert, ActivityIndicator, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView, StatusBar, Alert, ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
 
 /**
  * Componente para establecer una nueva contraseña (Validación y actualización.)
  */
-export default function RestablecerPassword({ onBack, onResetSuccess }) {
+export default function RestablecerPassword({ onBack, onResetSuccess, recoveryToken, recoveryRefresh }) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [activeUserEmail, setActiveUserEmail] = useState(null);
+  const [sessionCheckTimeout, setSessionCheckTimeout] = useState(false);
+
+  // Al cargar, intentamos ver si ya hay una sesión activa para mostrar el correo
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setActiveUserEmail(session.user.email);
+      } else {
+        // Ponemos un cronómetro de 5 segundos
+        const timer = setTimeout(() => {
+          if (!activeUserEmail) setSessionCheckTimeout(true);
+        }, 5000);
+        return () => clearTimeout(timer);
+      }
+    };
+    checkSession();
+  }, []);
 
   /**
    * Valida que la contraseña cumpla con las políticas de seguridad:
@@ -56,9 +77,28 @@ export default function RestablecerPassword({ onBack, onResetSuccess }) {
     setLoading(true);
 
     try {
+      // RE-INYECCIÓN DE SESIÓN: Garantizamos que la sesión esté viva justo antes de guardar
+      if (recoveryToken) {
+        console.log("Re-inyectando sesión antes de actualizar...");
+        const { error: sError } = await supabase.auth.setSession({
+          access_token: recoveryToken,
+          refresh_token: recoveryRefresh || "",
+        });
+        if (sError) console.error("Error en setSession:", sError.message);
+        
+        // FORZAMOS sincronización del cliente recuperando el usuario explícitamente
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) setActiveUserEmail(user.email);
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("Sesión verificada antes de update:", session ? session.user.email : "NULA");
+      if (!session) {
+        throw new Error("No hay sesión activa. Por favor, reabre el enlace de tu correo.");
+      }
+
       /**
        * supabase.auth.updateUser permite actualizar la contraseña del usuario actual.
-       * El usuario tiene una sesión activa temporal gracias al token de recuperación.
        */
       const { error } = await supabase.auth.updateUser({ password: password });
 
@@ -68,11 +108,10 @@ export default function RestablecerPassword({ onBack, onResetSuccess }) {
       if (Platform.OS === 'web') window.alert(successMsg);
       else Alert.alert("Éxito", successMsg);
       
-      // Llamar al callback de éxito para navegar al login
       onResetSuccess();
     } catch (err) {
       console.error("Error al actualizar contraseña:", err.message);
-      const errorMsg = "No se pudo actualizar la contraseña. El enlace puede haber expirado.";
+      const errorMsg = "No se pudo actualizar: " + err.message;
       if (Platform.OS === 'web') window.alert(errorMsg);
       else Alert.alert("Error", errorMsg);
     } finally {
@@ -83,63 +122,95 @@ export default function RestablecerPassword({ onBack, onResetSuccess }) {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#020617" />
-      <View style={styles.card}>
-        <View style={styles.logoContainer}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="lock-closed-outline" size={60} color="hsla(199, 54%, 50%, 1.00)" />
-          </View>
-          <Text style={styles.logoText}>SEGURIDAD</Text>
-          <View style={styles.logoUnderline} />
-        </View>
-
-        <Text style={styles.accessTitle}>Nueva Contraseña</Text>
-        <Text style={styles.description}>
-          Crea una nueva contraseña que cumpla con las políticas de seguridad corporativa.
-        </Text>
-
-        {/* Campo para la nueva clave */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Nueva Contraseña:</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-          />
-          <Text style={styles.hint}>7-15 caracteres, 1 número, 1 símbolo.</Text>
-        </View>
-
-        {/* Campo para confirmar la clave */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Confirmar Contraseña:</Text>
-          <TextInput
-            style={styles.input}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            autoCapitalize="none"
-          />
-        </View>
-
-        {/* Botón para aplicar el cambio */}
-        <TouchableOpacity
-          style={[styles.actionButton, loading && { opacity: 0.7 }]}
-          onPress={handleUpdatePassword}
-          disabled={loading}
+      <KeyboardAvoidingView
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        style={{ flex: 1, width: '100%' }}
+      >
+        <ScrollView 
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
+          keyboardShouldPersistTaps="handled"
         >
-          {loading ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={styles.actionButtonText}>Actualizar Contraseña</Text>
-          )}
-        </TouchableOpacity>
+          <View style={styles.card}>
+            <View style={styles.logoContainer}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="lock-closed-outline" size={60} color="hsla(199, 54%, 50%, 1.00)" />
+              </View>
+              <Text style={styles.logoText}>SEGURIDAD</Text>
+              <View style={styles.logoUnderline} />
+            </View>
 
-        {/* Opción para cancelar y volver */}
-        <TouchableOpacity onPress={onBack} style={{ marginTop: 15 }}>
-          <Text style={styles.linkText}>Cancelar</Text>
-        </TouchableOpacity>
-      </View>
+            <Text style={styles.accessTitle}>Nueva Contraseña</Text>
+            <Text style={styles.description}>
+              Crea una nueva contraseña que cumpla con las políticas de seguridad corporativa.
+            </Text>
+
+            {/* Campo para la nueva clave */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Nueva Contraseña:</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#475569" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.hint}>7-15 caracteres, 1 número, 1 símbolo.</Text>
+            </View>
+            
+
+            
+            {/* Campo para confirmar la clave */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Confirmar Contraseña:</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                  <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#475569" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Indicador de sesión activa con advertencia de timeout */}
+            <Text style={[styles.sessionStatus, sessionCheckTimeout && { color: '#ef4444' }]}>
+              {activeUserEmail 
+                ? `Listo para actualizar: ${activeUserEmail}` 
+                : (sessionCheckTimeout 
+                    ? "Sesión no detectada. Por favor, reabre el link de tu correo." 
+                    : "Verificando sesión...")
+              }
+            </Text>
+
+            {/* Botón para aplicar el cambio */}
+            <TouchableOpacity
+              style={[styles.submitButton, loading && { opacity: 0.7 }]}
+              onPress={handleUpdatePassword}
+              disabled={loading}
+            >
+              <Text style={styles.submitButtonText}>{loading ? 'Guardando...' : 'Actualizar Contraseña'}</Text>
+            </TouchableOpacity>
+
+            {/* Botón para cancelar y volver */}
+            <TouchableOpacity onPress={onBack} style={{ marginTop: 20 }}>
+              <Text style={styles.cancelText}>Cancelar</Text>
+            </TouchableOpacity>
+
+            {/* Etiqueta de versión al final para no estorbar */}
+            <Text style={styles.versionTagFooter}>v1.4.5 - InterGea (Un-delete Fix)</Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -218,13 +289,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#0f172a',
   },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#cbd5e1',
+    borderRadius: 25,
+    height: 40,
+  },
+  passwordInput: {
+    flex: 1,
+    height: 40,
+    paddingHorizontal: 20,
+    fontSize: 16,
+    color: '#0f172a',
+  },
+  eyeButton: {
+    paddingHorizontal: 15,
+    height: '100%',
+    justifyContent: 'center',
+  },
   hint: {
     color: '#64748b',
     fontSize: 11,
     marginTop: 5,
     marginLeft: 10,
   },
-  actionButton: {
+  submitButton: {
     backgroundColor: '#0891b2',
     width: '80%',
     height: 45,
@@ -233,14 +323,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
-  actionButtonText: {
+  submitButtonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  linkText: {
+  cancelText: {
     color: '#0891b2',
     fontSize: 14,
     fontWeight: '500',
+  },
+  versionTagFooter: {
+    color: '#475569',
+    fontSize: 10,
+    marginTop: 40,
+    marginBottom: 10,
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  sessionStatus: {
+    color: '#10b981',
+    fontSize: 11,
+    marginBottom: 15,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

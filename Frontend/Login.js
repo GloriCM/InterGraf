@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView, StatusBar, Alert, ActivityIndicator, Platform } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView, StatusBar, Alert, ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
 
 export default function Login({ onRegisterPress, onRecoverPasswordPress, onLoginSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Función para validar las credenciales usando Supabase Auth
@@ -22,11 +23,32 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
     setLoading(true);
 
     try {
-      // Intentar login con Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
-      });
+      console.log("Iniciando Pre-vuelo de conectividad (v1.3.3)...");
+      const { data: pingData, error: pingError } = await supabase.from('Usuarios_Registrados').select('id').limit(1);
+      
+      if (pingError) {
+        console.error("Fallo de Pre-vuelo (Conexión/CORS):", pingError.message);
+        throw new Error("PRE_VUELO_FALLIDO: " + pingError.message);
+      }
+      console.log("Pre-vuelo EXITOSO. Procediendo a Auth...");
+
+      console.log("Intentando signInWithPassword (v1.3.3)...");
+      
+      // Definimos un tiempo de espera de 12 segundos para no dejar al usuario colgado
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("TIEMPO_EXCEDIDO")), 12000)
+      );
+
+      // Carrera entre la petición real y el timeout
+      const { data: authData, error: authError } = await Promise.race([
+        supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password: password.trim(),
+        }),
+        timeoutPromise
+      ]);
+
+      console.log("Respuesta Auth recibida:", authData ? "Éxito" : "Sin Datos");
 
       if (authError) {
         setLoading(false);
@@ -47,6 +69,7 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
 
       // Login exitoso en Auth, ahora obtenemos los datos de la empresa
       const authUserId = authData.user.id;
+      console.log("Buscando empresa en DB para UID:", authUserId);
 
       const { data: empresaData, error: empresaError } = await supabase
         .from('Usuarios_Registrados')
@@ -86,10 +109,18 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
     } catch (err) {
       setLoading(false);
       console.error("Error en login:", err.message);
+      
+      let errorMsg = "Ocurrió un error al intentar ingresar.";
+      if (err.message === "TIEMPO_EXCEDIDO") {
+        errorMsg = "La conexión está tardando demasiado. Revisa tu internet o intenta de nuevo.";
+      } else if (err.message.includes("PRE_VUELO_FALLIDO")) {
+          errorMsg = "No se pudo conectar con el servidor. Verifica que no tengas extensiones bloqueadoras o problemas de red.";
+      }
+
       if (Platform.OS === 'web') {
-        window.alert("Ocurrió un error al intentar ingresar.");
+        window.alert(errorMsg);
       } else {
-        Alert.alert("Error", "Ocurrió un error al intentar ingresar.");
+        Alert.alert("Error", errorMsg);
       }
     }
   };
@@ -97,72 +128,98 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#020617" />
-      <View style={styles.card}>
-        <View style={styles.logoContainer}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="aperture-outline" size={60} color="hsla(199, 54%, 50%, 1.00)" />
-          </View>
-          <Text style={styles.logoText}>INTERGEA</Text>
-          <View style={styles.logoUnderline} />
-        </View>
-
-        <Text style={styles.accessTitle}>ACCESO</Text>
-        <Text style={styles.description}>
-          Plataforma industrial centralizada que se conecta con proveedores certificados
-        </Text>
-
-        {/* Campo para el correo */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Correo electrónico:</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            autoComplete="off"
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-        </View>
-
-        {/* Campo para la contraseña */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Contraseña:</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            autoComplete="off"
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-          />
-        </View>
-
-        {/* Botón principal de entrada con indicador de carga */}
-        <TouchableOpacity
-          style={[styles.loginButton, loading && { opacity: 0.7 }]}
-          onPress={handleLogin}
-          disabled={loading}
+      <KeyboardAvoidingView
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        style={{ flex: 1, width: '100%' }}
+      >
+        <ScrollView 
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
+          keyboardShouldPersistTaps="handled"
         >
-          {loading ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={styles.loginButtonText}>Ingresar</Text>
-          )}
-        </TouchableOpacity>
+          <View style={styles.card}>
+            <View style={styles.logoContainer}>
+              <Image 
+                source={require('./assets/LOGO-completo.png')} 
+                style={styles.logoImage} 
+                resizeMode="contain" 
+              />
+            </View>
 
-        {/* Enlaces de ayuda para registro o olvido de clave */}
-        <View style={styles.footerLinks}>
-          <Text style={styles.footerTextText}>¿No tienes acceso?</Text>
-          <TouchableOpacity onPress={onRegisterPress}>
-            <Text style={styles.linkText}>Registrar Empresa</Text>
-          </TouchableOpacity>
+            <Text style={styles.accessTitle}>ACCESO</Text>
+            <Text style={styles.description}>
+              Plataforma industrial centralizada que se conecta con proveedores certificados
+            </Text>
 
-          <Text style={[styles.footerTextText, { marginTop: 15 }]}>¿Olvidaste tu contraseña?</Text>
-          <TouchableOpacity onPress={onRecoverPasswordPress}>
-            <Text style={styles.linkText}>Recuperar contraseña</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+            {/* Campo para el correo */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Correo electrónico:</Text>
+              <TextInput
+                style={styles.input}
+                value={email}
+                autoComplete="off"
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            {/* Campo para la contraseña */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Contraseña:</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={password}
+                  autoComplete="off"
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity 
+                  style={styles.eyeButton} 
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Ionicons 
+                    name={showPassword ? "eye-off-outline" : "eye-outline"} 
+                    size={20} 
+                    color="#475569" 
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Botón principal de entrada con indicador de carga */}
+            <TouchableOpacity
+              style={[styles.loginButton, loading && { opacity: 0.7 }]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.loginButtonText}>Ingresar</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Enlaces de ayuda para registro o olvido de clave */}
+            <View style={styles.footerLinks}>
+              <Text style={styles.footerTextText}>¿No tienes acceso?</Text>
+              <TouchableOpacity onPress={onRegisterPress}>
+                <Text style={styles.linkText}>Registrar Empresa</Text>
+              </TouchableOpacity>
+
+              <Text style={[styles.footerTextText, { marginTop: 15 }]}>¿Olvidaste tu contraseña?</Text>
+              <TouchableOpacity onPress={onRecoverPasswordPress}>
+                <Text style={styles.linkText}>Recuperar contraseña</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Etiqueta de versión para control de actualizaciones */}
+            <Text style={styles.versionTag}>v1.4.5 - InterGea (Un-delete Fix)</Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -190,25 +247,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  logoText: {
-    color: '#94a3b8',
-    fontSize: 16,
-    fontWeight: '300',
-    letterSpacing: 4,
-  },
-  logoUnderline: {
-    width: 100,
-    height: 1,
-    backgroundColor: '#0891b2',
-    marginTop: 5,
+  logoImage: {
+    width: 280,
+    height: 120,
   },
   accessTitle: {
     color: '#ffffff',
@@ -241,6 +282,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#0f172a',
   },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#cbd5e1',
+    borderRadius: 25,
+    height: 40,
+  },
+  passwordInput: {
+    flex: 1,
+    height: 40,
+    paddingHorizontal: 20,
+    fontSize: 16,
+    color: '#0f172a',
+  },
+  eyeButton: {
+    paddingHorizontal: 15,
+    height: '100%',
+    justifyContent: 'center',
+  },
   loginButton: {
     backgroundColor: '#0891b2',
     width: '70%',
@@ -268,5 +328,11 @@ const styles = StyleSheet.create({
     color: '#0891b2',
     fontSize: 13,
     fontWeight: 'bold',
+  },
+  versionTag: {
+    marginTop: 20,
+    color: '#475569',
+    fontSize: 10,
+    fontWeight: '300',
   },
 });

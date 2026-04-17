@@ -1,102 +1,177 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar, Platform, Linking as RNLinking, Alert } from 'react-native';
+import * as Linking from 'expo-linking';
 import { supabase } from './supabase';
 import Login from './Login';
-import CrearProducto from './CrearProducto';
-import Inventario from './Inventario';
 import Registro from './Registro';
 import RecuperarPassword from './RecuperarPassword';
 import RestablecerPassword from './RestablecerPassword';
+import Inventario from './Inventario';
 import Perfil from './Perfil';
 import Mensajeria from './Mensajeria';
-import Comprador from './Comprador';
 import DetalleProducto from './DetalleProducto';
 import PedidosVendedor from './PedidosVendedor';
-import PedidosComprador from './PedidosComprador';
+import CrearProducto from './CrearProducto';
+import Comprador from './Comprador';
 import ResumenCarrito from './ResumenCarrito';
-import { useEffect } from 'react';
+import PedidosComprador from './PedidosComprador';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function App() {
-  // Manejamos en qué pantalla estamos (login, registro o dashboard)
   const [currentScreen, setCurrentScreen] = useState('login');
+  const [userData, setUserData] = useState(null);
+  const [session, setSession] = useState(null);
+  
+  // Estados para recuperación de contraseña
+  const [recoveryToken, setRecoveryToken] = useState(null);
+  const [recoveryRefresh, setRecoveryRefresh] = useState(null);
 
-  // Datos de la empresa después de loguearse con éxito
-  const [userData, setUserData] = useState(null); 
-
-  // Datos del producto seleccionado para editar o ver detalle
+  // Estados para navegación persistente entre componentes
   const [selectedProduct, setSelectedProduct] = useState(null);
-
-  // Estado del Carrito de Compras
-  const [cart, setCart] = useState([]);
-
-  // Estado para iniciar chat directo con un usuario
+  
+  // Estado para gestión de mensajería directa
   const [initialRecipientId, setInitialRecipientId] = useState(null);
   const [initialProductContext, setInitialProductContext] = useState(null);
   const [initialMessageText, setInitialMessageText] = useState(null);
+
+  // ESTADO DEL CARRITO COMPARTIDO (v1.3.0)
+  const [cart, setCart] = useState([]);
 
   /**
    * Efecto para escuchar eventos de autenticación globales de Supabase.
    * Detecta cuando el usuario llega desde un correo de recuperación de contraseña.
    */
   useEffect(() => {
-    // Listener de Supabase
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Evento Auth Detectado:", event);
+    // 1. Listener de URLs para Deep Linking (Expo Linking)
+    const handleDeepLink = async (url) => {
+      if (!url) return;
+      console.log("URL de Deep Link abierta (LOG):", url);
       
-      // Si el evento es PASSWORD_RECOVERY, mostramos la pantalla de nueva contraseña
+      const { queryParams } = Linking.parse(url);
+      
+      // EXTRACCIÓN BLINDADA v1.1.5: Regex directo sobre el string de la URL
+      const accessTokenMatch = url.match(/[#&?]access_token=([^&]+)/);
+      const refreshTokenMatch = url.match(/[#&?]refresh_token=([^&]+)/);
+      const typeMatch = url.match(/[#&?]type=([^&]+)/);
+
+      const accessToken = accessTokenMatch ? accessTokenMatch[1] : (queryParams?.access_token || "");
+      const refreshToken = refreshTokenMatch ? refreshTokenMatch[1] : (queryParams?.refresh_token || "");
+      const type = typeMatch ? typeMatch[1] : (queryParams?.type || "");
+      
+      if (accessToken) {
+        setRecoveryToken(accessToken);
+        setRecoveryRefresh(refreshToken);
+        
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        await supabase.auth.getUser();
+
+        if (sessionError) {
+          console.error("Error al establecer sesión manual:", sessionError.message);
+        }
+      }
+
+      if (url.includes('reset-password') || type === 'recovery' || accessToken) {
+        setTimeout(() => {
+          setCurrentScreen('reset_password');
+        }, 1000);
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleDeepLink(url);
+    });
+
+    Linking.getInitialURL().then(url => {
+      if (url) handleDeepLink(url);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+      
       if (event === 'PASSWORD_RECOVERY') {
-        setCurrentScreen('reset_password');
+        if (session) {
+          setRecoveryToken(session.access_token);
+          setRecoveryRefresh(session.refresh_token);
+          setCurrentScreen('reset_password');
+        }
+      }
+
+      if (event === 'SIGNED_IN') {
+        if (session?.user) {
+          const { data: userData, error } = await supabase
+            .from('Usuarios_Registrados')
+            .select('*')
+            .eq('auth_user_id', session.user.id)
+            .maybeSingle();
+
+          if (!error && userData) {
+            setUserData(userData);
+            setCurrentScreen('dashboard');
+          }
+        }
+      }
+      
+      if (event === 'SIGNED_OUT') {
+        setUserData(null);
+        setCart([]); // Limpiar carrito al salir
+        setCurrentScreen('login');
       }
     });
 
-    // Limpieza del listener al desmontar el componente
     return () => {
-      subscription.unsubscribe();
+      subscription.remove();
+      authListener.subscription.unsubscribe();
     };
   }, []);
 
-  // Si el usuario está en la pantalla de Login
+  // --- NAVEGACIÓN PRINCIPAL ---
+
   if (currentScreen === 'login') {
     return (
-      <Login
-        onRegisterPress={() => setCurrentScreen('register')}
-        onRecoverPasswordPress={() => setCurrentScreen('recover_password')}
+      <Login 
         onLoginSuccess={(data) => {
           setUserData(data);
           setCurrentScreen('dashboard');
         }}
+        onRegisterPress={() => setCurrentScreen('registro')}
+        onRecoverPasswordPress={() => setCurrentScreen('recuperar')}
       />
     );
   }
 
-  // Pantalla de Recuperar Contraseña (Solicitud)
-  if (currentScreen === 'recover_password') {
-    return (
-      <RecuperarPassword 
-        onBack={() => setCurrentScreen('login')} 
-      />
-    );
+  if (currentScreen === 'registro') {
+    return <Registro onBack={() => setCurrentScreen('login')} onRegistrationSuccess={() => {
+      alert("¡Registro enviado! Revisa tu correo para verificar tu cuenta.");
+      setCurrentScreen('login');
+    }} />;
   }
 
-  // Pantalla de Restablecer Contraseña (Nueva clave)
+  if (currentScreen === 'recuperar') {
+    return <RecuperarPassword onBack={() => setCurrentScreen('login')} />;
+  }
+
   if (currentScreen === 'reset_password') {
     return (
       <RestablecerPassword 
-        onBack={() => setCurrentScreen('login')}
-        onResetSuccess={() => {
+        token={recoveryToken} 
+        refreshToken={recoveryRefresh}
+        onBack={() => setCurrentScreen('login')} 
+        onSuccess={async () => {
+          setRecoveryToken(null);
+          setRecoveryRefresh(null);
+          await supabase.auth.signOut();
           setCurrentScreen('login');
-          if (Platform.OS === 'web') {
-            window.alert("¡Contraseña actualizada! Ya puedes iniciar sesión con tu nueva clave.");
-          } else {
-            alert("¡Contraseña actualizada! Ya puedes iniciar sesión con tu nueva clave.");
-          }
+          alert("¡Contraseña actualizada! Ya puedes iniciar sesión con tu nueva clave.");
         }}
       />
     );
   }
 
-  // Si el usuario ya entró con éxito (Panel de Bienvenida)
+  // Dashboard de Roles
   if (currentScreen === 'dashboard' && userData) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -105,55 +180,49 @@ export default function App() {
           <View style={styles.iconContainer}>
             <Ionicons name="shield-checkmark" size={36} color="#3b82f6" />
           </View>
-          
           <Text style={styles.welcomeText}>¡Bienvenido!</Text>
           <Text style={styles.companyNameText}>{userData.razon_social}</Text>
           <Text style={styles.subtitleText}>Selecciona tu rol inicial</Text>
           
-          <TouchableOpacity 
-            style={styles.roleCard} 
-            onPress={() => setCurrentScreen('comprador')} 
-          >
-            <View style={[styles.roleIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-              <Ionicons name="cart-outline" size={24} color="#3b82f6" />
-            </View>
-            <Text style={styles.roleTitle}>Comprador</Text>
-            <Text style={styles.roleSubtitle}>ADQUIRIR INSUMOS</Text>
-          </TouchableOpacity>
+          <View style={styles.roleGrid}>
+            <TouchableOpacity style={styles.roleCard} onPress={() => setCurrentScreen('comprador')}>
+              <View style={[styles.roleIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
+                <Ionicons name="cart-outline" size={24} color="#3b82f6" />
+              </View>
+              <Text style={styles.roleTitle}>Comprador</Text>
+              <Text style={styles.roleSubtitle}>ADQUIRIR INSUMOS</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.roleCard} 
-            onPress={() => setCurrentScreen('inventario')}
-          >
-            <View style={[styles.roleIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-              <Ionicons name="trending-up-outline" size={24} color="#10b981" />
-            </View>
-            <Text style={styles.roleTitle}>Vendedor</Text>
-            <Text style={styles.roleSubtitle}>GESTIONAR BODEGA</Text>
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.roleCard} onPress={() => setCurrentScreen('inventario')}>
+              <View style={[styles.roleIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+                <Ionicons name="trending-up-outline" size={24} color="#10b981" />
+              </View>
+              <Text style={styles.roleTitle}>Vendedor</Text>
+              <Text style={styles.roleSubtitle}>GESTIONAR BODEGA</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.logoutTextButton} 
-            onPress={async () => {
-              await supabase.auth.signOut();
-              setUserData(null);
-              setCurrentScreen('login');
-            }}
-          >
-            <Text style={styles.logoutText}>Cerrar Sesión</Text>
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.logoutTextButton} 
+              onPress={async () => {
+                await supabase.auth.signOut();
+                setUserData(null);
+                setCurrentScreen('login');
+              }}>
+              <Text style={styles.logoutText}>Cerrar Sesión</Text>
+            </TouchableOpacity>
+            <Text style={styles.versionTag}>v1.4.5 - InterGea (Un-delete Fix)</Text>
+          </View>
         </View>
       </SafeAreaView>
     );
   }
 
+  // --- PANTALLAS DE VENDEDOR ---
 
-  // Pantalla de Crear Producto
   if (currentScreen === 'crear_producto') {
     return <CrearProducto userData={userData} onBack={() => setCurrentScreen('inventario')} onNavigate={setCurrentScreen} />;
   }
 
-  // Pantalla de Editar Producto
   if (currentScreen === 'editar_producto') {
     return (
       <CrearProducto 
@@ -165,12 +234,100 @@ export default function App() {
     );
   }
 
-  // Pantalla de Mensajeria
+  if (currentScreen === 'inventario') {
+    return (
+      <Inventario 
+        onBack={() => setCurrentScreen('dashboard')} 
+        onNavigate={setCurrentScreen}
+        onEditProduct={(p) => {
+          setSelectedProduct(p);
+          setCurrentScreen('editar_producto');
+        }}
+        onAddProduct={() => {
+          setSelectedProduct(null);
+          setCurrentScreen('crear_producto');
+        }}
+        viewMode="vendedor" 
+        userData={userData}
+      />
+    );
+  }
+
+  if (currentScreen === 'pedidos_vendedor') {
+    return (
+      <PedidosVendedor onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} userData={userData} />
+    );
+  }
+
+  // --- PANTALLAS DE COMPRADOR ---
+
+  if (currentScreen === 'comprador') {
+    return (
+      <Comprador 
+        userData={userData}
+        onBack={() => setCurrentScreen('dashboard')}
+        onNavigate={(screen, params) => {
+          if (params) setSelectedProduct(params);
+          setCurrentScreen(screen);
+        }}
+        cart={cart}
+        setCart={setCart}
+      />
+    );
+  }
+
+  if (currentScreen === 'resumen_carrito') {
+    return (
+      <ResumenCarrito 
+        userData={userData}
+        cart={cart}
+        setCart={setCart}
+        onBack={() => setCurrentScreen('comprador')}
+        onNavigate={setCurrentScreen}
+      />
+    );
+  }
+
+  if (currentScreen === 'pedidos_comprador') {
+    return (
+      <PedidosComprador 
+        userData={userData}
+        onBack={() => setCurrentScreen('dashboard')}
+        onNavigate={setCurrentScreen}
+      />
+    );
+  }
+
+  if (currentScreen === 'detalle_producto' && selectedProduct) {
+    return (
+      <DetalleProducto 
+        producto={selectedProduct} 
+        onBack={() => setCurrentScreen('comprador')} 
+        onNavigate={(screen, params) => {
+          if (screen === 'mensajeria' && params) {
+            setInitialRecipientId(params.initialRecipient);
+            setInitialProductContext(params.initialProduct);
+            setInitialMessageText(params.initialMessage);
+          }
+          setCurrentScreen(screen);
+        }}
+        onAddToCart={(item) => setCart([...cart, item])}
+        userData={userData}
+      />
+    );
+  }
+
+  // --- PANTALLAS COMUNES ---
+
+  if (currentScreen === 'perfil') {
+    return <Perfil userData={userData} onUpdate={setUserData} onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
+  }
+
   if (currentScreen === 'mensajeria') {
     return (
       <Mensajeria 
         onBack={() => setCurrentScreen('dashboard')} 
-        onNavigate={setCurrentScreen} 
+        onNavigate={setCurrentScreen}
         userData={userData}
         initialRecipientId={initialRecipientId}
         initialProductContext={initialProductContext}
@@ -184,217 +341,22 @@ export default function App() {
     );
   }
 
-  // Pantalla de Inventario
-  if (currentScreen === 'inventario') {
-    return (
-      <Inventario 
-        onBack={() => setCurrentScreen('dashboard')} 
-        userData={userData}
-        onNavigate={(screen, extraData) => {
-          if (screen === 'editar_producto') {
-            setSelectedProduct(extraData);
-          }
-          setCurrentScreen(screen);
-        }} 
-      />
-    );
-  }
-
-  // Pantalla de Pedidos Recibidos (RF-013)
-  if (currentScreen === 'pedidos_vendedor') {
-    return (
-      <PedidosVendedor 
-        userData={userData} 
-        onBack={() => setCurrentScreen('inventario')} 
-        onNavigate={setCurrentScreen} 
-      />
-    );
-  }
-
-  // Pantalla de Perfil
-  if (currentScreen === 'perfil') {
-    return (
-      <Perfil 
-        userData={userData} 
-        onUpdate={setUserData} 
-        onBack={() => setCurrentScreen('dashboard')} 
-        onNavigate={setCurrentScreen} 
-      />
-    );
-  }
-
-  // Pantalla de Comprador
-  if (currentScreen === 'comprador') {
-    return (
-      <Comprador 
-        userData={userData} 
-        onBack={() => setCurrentScreen('dashboard')} 
-        onNavigate={(screen, data) => {
-          if (screen === 'detalle_producto') {
-            setSelectedProduct(data);
-          }
-          setCurrentScreen(screen);
-        }}
-        cart={cart}
-        setCart={setCart}
-      />
-    );
-  }
-
-  // Pantalla de Pedidos Realizados (Comprador - Sección 3.4)
-  if (currentScreen === 'pedidos_comprador') {
-    return (
-      <PedidosComprador 
-        userData={userData} 
-        onBack={() => setCurrentScreen('comprador')} 
-        onNavigate={setCurrentScreen} 
-      />
-    );
-  }
-
-  // Pantalla de Resumen de Carrito
-  if (currentScreen === 'resumen_carrito') {
-    return (
-      <ResumenCarrito 
-        userData={userData}
-        cart={cart}
-        setCart={setCart}
-        onBack={() => setCurrentScreen('comprador')} 
-        onNavigate={setCurrentScreen} 
-      />
-    );
-  }
-
-  // Pantalla de Detalle de Producto
-  if (currentScreen === 'detalle_producto') {
-    return (
-      <DetalleProducto 
-        userData={userData} 
-        producto={selectedProduct}
-        onBack={() => setCurrentScreen('comprador')} 
-        onNavigate={(screen, data) => {
-          if (screen === 'mensajeria' && data?.initialRecipient) {
-            setInitialRecipientId(data.initialRecipient);
-            if (data.initialProduct) setInitialProductContext(data.initialProduct);
-            if (data.initialMessage) setInitialMessageText(data.initialMessage);
-          }
-          setCurrentScreen(screen);
-        }}
-        onAddToCart={(item) => {
-          setCart(prevCart => {
-            // Buscamos si el producto ya existe en el carrito
-            const existingIndex = prevCart.findIndex(i => i.id === item.id);
-            
-            if (existingIndex !== -1) {
-              // Si existe, creamos un nuevo array con la cantidad actualizada
-              const newCart = [...prevCart];
-              newCart[existingIndex] = {
-                ...newCart[existingIndex],
-                cantidadSeleccionada: (newCart[existingIndex].cantidadSeleccionada || 0) + item.cantidadSeleccionada
-              };
-              return newCart;
-            } else {
-              // Si no existe, lo añadimos como nuevo item
-              return [...prevCart, item];
-            }
-          });
-        }}
-      />
-    );
-  }
-
-  // Pantalla de Registro (componente aislado con su propio estado)
-  return (
-    <Registro
-      onBack={() => setCurrentScreen('login')}
-      onRegistrationSuccess={(data) => {
-        setCurrentScreen('login');
-        if (Platform.OS === 'web') {
-          window.alert("¡Registro Exitoso! Revisa tu correo electrónico para verificar tu cuenta antes de iniciar sesión.");
-        } else {
-          alert("¡Registro Exitoso! Revisa tu correo electrónico para verificar tu cuenta antes de iniciar sesión.");
-        }
-      }}
-    />
-  );
+  return null;
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#0B1120',
-  },
-  dashboardContainer: {
-    flex: 1,
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#0B1120',
-    paddingTop: 80,
-  },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  welcomeText: {
-    color: '#ffffff',
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  companyNameText: {
-    color: '#ffffff',
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  subtitleText: {
-    color: '#94a3b8',
-    fontSize: 16,
-    marginBottom: 48,
-  },
-  roleCard: {
-    backgroundColor: '#0F172A',
-    width: '100%',
-    padding: 24,
-    borderRadius: 24,
-    alignItems: 'center',
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  roleIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  roleTitle: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  roleSubtitle: {
-    color: '#64748b',
-    fontSize: 10,
-    fontWeight: 'bold',
-    letterSpacing: 1.5,
-  },
-  logoutTextButton: {
-    marginTop: 'auto',
-    marginBottom: 20,
-    padding: 10,
-  },
-  logoutText: {
-    color: '#ef4444',
-    fontSize: 16,
-    fontWeight: '500',
-  },
+  safeArea: { flex: 1, backgroundColor: '#020617' },
+  dashboardContainer: { flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center' },
+  iconContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(59, 130, 246, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
+  welcomeText: { color: '#94a3b8', fontSize: 16, fontWeight: '500', marginBottom: 8 },
+  companyNameText: { color: '#ffffff', fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 },
+  subtitleText: { color: '#64748b', fontSize: 14, marginBottom: 40 },
+  roleGrid: { width: '100%', gap: 16 },
+  roleCard: { backgroundColor: '#0F172A', width: '100%', padding: 24, borderRadius: 24, alignItems: 'center', marginBottom: 20, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)' },
+  roleIconContainer: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  roleTitle: { color: '#ffffff', fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  roleSubtitle: { color: '#64748b', fontSize: 10, fontWeight: 'bold', letterSpacing: 1.5 },
+  logoutTextButton: { marginTop: 20, padding: 12, alignItems: 'center' },
+  logoutText: { color: '#ef4444', fontSize: 14, fontWeight: '600' },
+  versionTag: { marginTop: 30, color: '#334155', fontSize: 10, fontWeight: '300', textAlign: 'center' },
 });

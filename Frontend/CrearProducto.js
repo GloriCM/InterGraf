@@ -16,7 +16,7 @@ import {
 import { Picker } from '@react-native-picker/picker'; // Si se usa para categorías, aunque ahora es un TextInput
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from './supabase';
 
