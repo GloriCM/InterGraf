@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, Platform, KeyboardAvoidingView } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, Platform, KeyboardAvoidingView, Image } from 'react-native';
 import { AntDesign, Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -236,215 +236,219 @@ export default function Registro({ onBack, onRegistrationSuccess }) {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        <View style={styles.card}>
-          <View style={styles.logoContainer}>
-            <Ionicons name="aperture" size={40} color="#0891b2" />
-            <Text style={styles.logoText}> INTERGEA</Text>
-          </View>
-          <Text style={styles.title}>Formulario de Afiliación</Text>
-          <Text style={styles.subtitle}>Validación de la empresa</Text>
-
-          {/* Bait fields for aggressive browser autofill */}
-          <View style={{ height: 0, overflow: 'hidden', opacity: 0, position: 'absolute' }}>
-            <TextInput autoComplete="username" value="bait" />
-            <TextInput secureTextEntry autoComplete="current-password" value="bait" />
-          </View>
-
-          {/* Campos del formulario */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Razón Social:</Text>
-            <TextInput
-              style={[styles.input, errors.razonSocial && styles.inputError]}
-              value={razonSocial}
-              maxLength={25}
-              autoComplete="off"
-              autoFocus={true}
-              name={`rs_${Date.now()}`}
-              onChangeText={(text) => {
-                const filteredText = text.replace(/[^a-zA-Z0-9\sáéíóúÁÉÍÓÚñÑ]/g, '');
-                setRazonSocial(filteredText);
-                setErrors({ ...errors, razonSocial: null });
-              }}
-            />
-            {errors.razonSocial && <Text style={styles.errorText}>{errors.razonSocial}</Text>}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>NIT / RUT:</Text>
-            <TextInput
-              style={[styles.input, errors.numeroDocumento && styles.inputError]}
-              value={numeroDocumento}
-              autoComplete="off"
-              name={`nd_${Date.now()}`}
-              keyboardType="numeric"
-              onChangeText={(text) => { 
-                const cleaned = text.replace(/[^0-9]/g, '');
-                setNumeroDocumento(cleaned); 
-                setErrors({ ...errors, numeroDocumento: null }); 
-              }}
-            />
-            {errors.numeroDocumento && <Text style={styles.errorText}>{errors.numeroDocumento}</Text>}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Dirección Legal:</Text>
-            <TextInput
-              style={[styles.input, errors.direccion && styles.inputError]}
-              value={direccion}
-              autoComplete="off"
-              name={`dir_${Date.now()}`}
-              onChangeText={(text) => { setDireccion(text); setErrors({ ...errors, direccion: null }); }}
-            />
-            {errors.direccion && <Text style={styles.errorText}>{errors.direccion}</Text>}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Ciudad:</Text>
-            <View style={[styles.pickerContainer, errors.ciudad && styles.inputError]}>
-              <Picker selectedValue={selectedCity} onValueChange={setSelectedCity} style={styles.picker}>
-                <Picker.Item label="Seleccione una ciudad" value="" />
-                {colombianCities.map((c, i) => <Picker.Item key={i} label={c} value={c} />)}
-              </Picker>
-            </View>
-            {errors.ciudad && <Text style={styles.errorText}>{errors.ciudad}</Text>}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Sector Empresarial:</Text>
-            <View style={[styles.pickerContainer, errors.sectorEmpresarial && styles.inputError]}>
-              <Picker
-                selectedValue={sectorEmpresarial}
-                onValueChange={(itemValue) => { setSectorEmpresarial(itemValue); setErrors({ ...errors, sectorEmpresarial: null }); }}
-                style={styles.picker}
-              >
-                <Picker.Item label="Seleccione un sector" value="" />
-                <Picker.Item label="Tecnología" value="Tecnología" />
-                <Picker.Item label="Salud" value="Salud" />
-                <Picker.Item label="Educación" value="Educación" />
-                <Picker.Item label="Comercio" value="Comercio" />
-                <Picker.Item label="Servicios" value="Servicios" />
-                <Picker.Item label="Manufactura" value="Manufactura" />
-                <Picker.Item label="Agropecuario" value="Agropecuario" />
-                <Picker.Item label="Otro" value="Otro" />
-              </Picker>
-            </View>
-            {errors.sectorEmpresarial && <Text style={styles.errorText}>{errors.sectorEmpresarial}</Text>}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Correo:</Text>
-            <TextInput
-              style={[styles.input, errors.correo && styles.inputError]}
-              value={correo}
-              autoComplete="off"
-              name={`em_${Date.now()}`}
-              keyboardType="email-address"
-              onChangeText={(text) => { setCorreo(text); setErrors({ ...errors, correo: null }); }}
-            />
-            {errors.correo && <Text style={styles.errorText}>{errors.correo}</Text>}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Teléfono:</Text>
-            <TextInput
-              style={[styles.input, errors.telefono && styles.inputError]}
-              value={telefono}
-              autoComplete="off"
-              name={`tel_${Date.now()}`}
-              keyboardType="phone-pad"
-              maxLength={15}
-              onChangeText={(text) => { 
-                const numericValue = text.replace(/[^0-9]/g, '');
-                setTelefono(numericValue); 
-                setErrors({ ...errors, telefono: null }); 
-              }}
-            />
-            {errors.telefono && <Text style={styles.errorText}>{errors.telefono}</Text>}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Descripción:</Text>
-            <TextInput
-              style={[styles.input, errors.descripcion && styles.inputError]}
-              value={descripcion}
-              autoComplete="off"
-              name={`desc_${Date.now()}`}
-              onChangeText={(text) => { setDescripcion(text); setErrors({ ...errors, descripcion: null }); }}
-            />
-            {errors.descripcion && <Text style={styles.errorText}>{errors.descripcion}</Text>}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Crear Contraseña:</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                value={contrasena}
-                secureTextEntry={!showPassword}
-                autoComplete="off"
-                name={`pw_${Date.now()}`}
-                onChangeText={(text) => { setContrasena(text); setErrors({ ...errors, contrasena: null }); }}
+          <View style={styles.card}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('./assets/LOGO-Sin-Letras.png')}
+                style={styles.logoIcon}
+                resizeMode="contain"
               />
-              <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#475569" />
-              </TouchableOpacity>
+              <Text style={styles.logoText}>INTERGEA</Text>
             </View>
-            {errors.contrasena && <Text style={styles.errorText}>{errors.contrasena}</Text>}
-          </View>
+            <Text style={styles.title}>Formulario de Afiliación</Text>
+            <Text style={styles.subtitle}>Validación de la empresa</Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Confirmar Contraseña:</Text>
-            <View style={styles.passwordContainer}>
+            {/* Bait fields for aggressive browser autofill */}
+            <View style={{ height: 0, overflow: 'hidden', opacity: 0, position: 'absolute' }}>
+              <TextInput autoComplete="username" value="bait" />
+              <TextInput secureTextEntry autoComplete="current-password" value="bait" />
+            </View>
+
+            {/* Campos del formulario */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Razón Social:</Text>
               <TextInput
-                style={styles.passwordInput}
-                value={confirmarContrasena}
-                secureTextEntry={!showConfirmPassword}
+                style={[styles.input, errors.razonSocial && styles.inputError]}
+                value={razonSocial}
+                maxLength={25}
                 autoComplete="off"
-                name={`cpw_${Date.now()}`}
-                onChangeText={(text) => { setConfirmarContrasena(text); setErrors({ ...errors, confirmarContrasena: null }); }}
+                autoFocus={true}
+                name={`rs_${Date.now()}`}
+                onChangeText={(text) => {
+                  const filteredText = text.replace(/[^a-zA-Z0-9\sáéíóúÁÉÍÓÚñÑ]/g, '');
+                  setRazonSocial(filteredText);
+                  setErrors({ ...errors, razonSocial: null });
+                }}
               />
-              <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#475569" />
-              </TouchableOpacity>
+              {errors.razonSocial && <Text style={styles.errorText}>{errors.razonSocial}</Text>}
             </View>
-            {errors.confirmarContrasena && <Text style={styles.errorText}>{errors.confirmarContrasena}</Text>}
-          </View>
 
-          <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
-            <AntDesign name="plus" size={24} color={logoUri ? "#10b981" : "#475569"} />
-          </TouchableOpacity>
-          {errors.logo && <Text style={[styles.errorText, { marginBottom: 10 }]}>{errors.logo}</Text>}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>NIT / RUT:</Text>
+              <TextInput
+                style={[styles.input, errors.numeroDocumento && styles.inputError]}
+                value={numeroDocumento}
+                autoComplete="off"
+                name={`nd_${Date.now()}`}
+                keyboardType="numeric"
+                onChangeText={(text) => {
+                  const cleaned = text.replace(/[^0-9]/g, '');
+                  setNumeroDocumento(cleaned);
+                  setErrors({ ...errors, numeroDocumento: null });
+                }}
+              />
+              {errors.numeroDocumento && <Text style={styles.errorText}>{errors.numeroDocumento}</Text>}
+            </View>
 
-          <View style={styles.termsMaster}>
-            <TouchableOpacity 
-              style={styles.termsContainer} 
-              onPress={() => { setIsChecked(!isChecked); setErrors({ ...errors, terminos: null }); }}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.checkbox, isChecked && styles.checkboxActive]}>
-                {isChecked && <AntDesign name="check" size={14} color="#fff" />}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Dirección Legal:</Text>
+              <TextInput
+                style={[styles.input, errors.direccion && styles.inputError]}
+                value={direccion}
+                autoComplete="off"
+                name={`dir_${Date.now()}`}
+                onChangeText={(text) => { setDireccion(text); setErrors({ ...errors, direccion: null }); }}
+              />
+              {errors.direccion && <Text style={styles.errorText}>{errors.direccion}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Ciudad:</Text>
+              <View style={[styles.pickerContainer, errors.ciudad && styles.inputError]}>
+                <Picker selectedValue={selectedCity} onValueChange={setSelectedCity} style={styles.picker}>
+                  <Picker.Item label="Seleccione una ciudad" value="" />
+                  {colombianCities.map((c, i) => <Picker.Item key={i} label={c} value={c} />)}
+                </Picker>
               </View>
-              <Text style={styles.termsText}>Acepto términos y condiciones</Text>
+              {errors.ciudad && <Text style={styles.errorText}>{errors.ciudad}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Sector Empresarial:</Text>
+              <View style={[styles.pickerContainer, errors.sectorEmpresarial && styles.inputError]}>
+                <Picker
+                  selectedValue={sectorEmpresarial}
+                  onValueChange={(itemValue) => { setSectorEmpresarial(itemValue); setErrors({ ...errors, sectorEmpresarial: null }); }}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Seleccione un sector" value="" />
+                  <Picker.Item label="Tecnología" value="Tecnología" />
+                  <Picker.Item label="Salud" value="Salud" />
+                  <Picker.Item label="Educación" value="Educación" />
+                  <Picker.Item label="Comercio" value="Comercio" />
+                  <Picker.Item label="Servicios" value="Servicios" />
+                  <Picker.Item label="Manufactura" value="Manufactura" />
+                  <Picker.Item label="Agropecuario" value="Agropecuario" />
+                  <Picker.Item label="Otro" value="Otro" />
+                </Picker>
+              </View>
+              {errors.sectorEmpresarial && <Text style={styles.errorText}>{errors.sectorEmpresarial}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Correo:</Text>
+              <TextInput
+                style={[styles.input, errors.correo && styles.inputError]}
+                value={correo}
+                autoComplete="off"
+                name={`em_${Date.now()}`}
+                keyboardType="email-address"
+                onChangeText={(text) => { setCorreo(text); setErrors({ ...errors, correo: null }); }}
+              />
+              {errors.correo && <Text style={styles.errorText}>{errors.correo}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Teléfono:</Text>
+              <TextInput
+                style={[styles.input, errors.telefono && styles.inputError]}
+                value={telefono}
+                autoComplete="off"
+                name={`tel_${Date.now()}`}
+                keyboardType="phone-pad"
+                maxLength={15}
+                onChangeText={(text) => {
+                  const numericValue = text.replace(/[^0-9]/g, '');
+                  setTelefono(numericValue);
+                  setErrors({ ...errors, telefono: null });
+                }}
+              />
+              {errors.telefono && <Text style={styles.errorText}>{errors.telefono}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Descripción:</Text>
+              <TextInput
+                style={[styles.input, errors.descripcion && styles.inputError]}
+                value={descripcion}
+                autoComplete="off"
+                name={`desc_${Date.now()}`}
+                onChangeText={(text) => { setDescripcion(text); setErrors({ ...errors, descripcion: null }); }}
+              />
+              {errors.descripcion && <Text style={styles.errorText}>{errors.descripcion}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Crear Contraseña:</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={contrasena}
+                  secureTextEntry={!showPassword}
+                  autoComplete="off"
+                  name={`pw_${Date.now()}`}
+                  onChangeText={(text) => { setContrasena(text); setErrors({ ...errors, contrasena: null }); }}
+                />
+                <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#475569" />
+                </TouchableOpacity>
+              </View>
+              {errors.contrasena && <Text style={styles.errorText}>{errors.contrasena}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Confirmar Contraseña:</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={confirmarContrasena}
+                  secureTextEntry={!showConfirmPassword}
+                  autoComplete="off"
+                  name={`cpw_${Date.now()}`}
+                  onChangeText={(text) => { setConfirmarContrasena(text); setErrors({ ...errors, confirmarContrasena: null }); }}
+                />
+                <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                  <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#475569" />
+                </TouchableOpacity>
+              </View>
+              {errors.confirmarContrasena && <Text style={styles.errorText}>{errors.confirmarContrasena}</Text>}
+            </View>
+
+            <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
+              <AntDesign name="plus" size={24} color={logoUri ? "#10b981" : "#475569"} />
             </TouchableOpacity>
-            {errors.terminos && <Text style={[styles.errorText, { marginTop: -20, marginBottom: 25 }]}>{errors.terminos}</Text>}
+            {errors.logo && <Text style={[styles.errorText, { marginBottom: 10 }]}>{errors.logo}</Text>}
+
+            <View style={styles.termsMaster}>
+              <TouchableOpacity
+                style={styles.termsContainer}
+                onPress={() => { setIsChecked(!isChecked); setErrors({ ...errors, terminos: null }); }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.checkbox, isChecked && styles.checkboxActive]}>
+                  {isChecked && <AntDesign name="check" size={14} color="#fff" />}
+                </View>
+                <Text style={styles.termsText}>Acepto términos y condiciones</Text>
+              </TouchableOpacity>
+              {errors.terminos && <Text style={[styles.errorText, { marginTop: -20, marginBottom: 25 }]}>{errors.terminos}</Text>}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitButton, loading && { opacity: 0.7 }]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              <Text style={styles.submitButtonText}>{loading ? 'Cargando...' : 'Registrar Empresa'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={onBack}>
+              <Text style={styles.backButtonText}>Volver al Login</Text>
+            </TouchableOpacity>
+
+            {/* Etiqueta de versión para control de actualizaciones */}
+            <Text style={styles.versionTag}></Text>
           </View>
-
-          <TouchableOpacity
-            style={[styles.submitButton, loading && { opacity: 0.7 }]}
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            <Text style={styles.submitButtonText}>{loading ? 'Cargando...' : 'Registrar Empresa'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={onBack}>
-            <Text style={styles.backButtonText}>Volver al Login</Text>
-          </TouchableOpacity>
-
-          {/* Etiqueta de versión para control de actualizaciones */}
-          <Text style={styles.versionTag}>v1.4.5 - InterGea (Un-delete Fix)</Text>
-        </View>
-      </ScrollView>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -483,26 +487,25 @@ const styles = StyleSheet.create({
   },
   errorText: { color: '#ef4444', fontSize: 10, marginTop: 3, marginLeft: 10 },
   successText: { color: '#10b981', fontSize: 10, marginBottom: 10 },
-  pickerContainer: { 
-    backgroundColor: '#cbd5e1', 
-    borderRadius: 25, 
-    height: 50, 
-    justifyContent: 'center', 
+  pickerContainer: {
+    backgroundColor: '#cbd5e1',
+    borderRadius: 25,
+    height: 50,
+    justifyContent: 'center',
     overflow: 'hidden',
-    paddingHorizontal: 10 
+    paddingHorizontal: 10
   },
-  picker: { 
-    height: 50, 
+  picker: {
+    height: 50,
     color: '#0f172a',
     backgroundColor: 'transparent'
   },
-  versionTag: {
-    marginTop: 20,
-    color: '#475569',
-    fontSize: 10,
-    fontWeight: '300',
-    textAlign: 'center'
+  logoIcon: {
+    height: 60,
+    width: 60,
+    marginBottom: 5,
   },
+  logoText: { color: '#94a3b8', fontSize: 10, fontWeight: 'bold' },
   uploadButton: { backgroundColor: '#e2e8f0', width: 60, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
   termsContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 25, paddingVertical: 10, paddingHorizontal: 15 },
   termsMaster: { alignItems: 'center', width: '100%' },

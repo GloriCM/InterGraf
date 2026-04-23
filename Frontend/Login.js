@@ -25,7 +25,7 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
     try {
       console.log("Iniciando Pre-vuelo de conectividad (v1.3.3)...");
       const { data: pingData, error: pingError } = await supabase.from('Usuarios_Registrados').select('id').limit(1);
-      
+
       if (pingError) {
         console.error("Fallo de Pre-vuelo (Conexión/CORS):", pingError.message);
         throw new Error("PRE_VUELO_FALLIDO: " + pingError.message);
@@ -33,9 +33,9 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
       console.log("Pre-vuelo EXITOSO. Procediendo a Auth...");
 
       console.log("Intentando signInWithPassword (v1.3.3)...");
-      
+
       // Definimos un tiempo de espera de 12 segundos para no dejar al usuario colgado
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("TIEMPO_EXCEDIDO")), 12000)
       );
 
@@ -109,12 +109,12 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
     } catch (err) {
       setLoading(false);
       console.error("Error en login:", err.message);
-      
+
       let errorMsg = "Ocurrió un error al intentar ingresar.";
       if (err.message === "TIEMPO_EXCEDIDO") {
         errorMsg = "La conexión está tardando demasiado. Revisa tu internet o intenta de nuevo.";
       } else if (err.message.includes("PRE_VUELO_FALLIDO")) {
-          errorMsg = "No se pudo conectar con el servidor. Verifica que no tengas extensiones bloqueadoras o problemas de red.";
+        errorMsg = "No se pudo conectar con el servidor. Verifica que no tengas extensiones bloqueadoras o problemas de red.";
       }
 
       if (Platform.OS === 'web') {
@@ -133,16 +133,16 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         style={{ flex: 1, width: '100%' }}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.card}>
             <View style={styles.logoContainer}>
-              <Image 
-                source={require('./assets/LOGO-completo.png')} 
-                style={styles.logoImage} 
-                resizeMode="contain" 
+              <Image
+                source={require('./assets/LOGO-completo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
               />
             </View>
 
@@ -176,14 +176,14 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                 />
-                <TouchableOpacity 
-                  style={styles.eyeButton} 
+                <TouchableOpacity
+                  style={styles.eyeButton}
                   onPress={() => setShowPassword(!showPassword)}
                 >
-                  <Ionicons 
-                    name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                    size={20} 
-                    color="#475569" 
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#475569"
                   />
                 </TouchableOpacity>
               </View>
@@ -216,7 +216,7 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
             </View>
 
             {/* Etiqueta de versión para control de actualizaciones */}
-            <Text style={styles.versionTag}>v1.5.0 - InterGea (Modern Header)</Text>
+            <Text style={styles.versionTag}>v1.5.1 - InterGea (Modern Header)</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

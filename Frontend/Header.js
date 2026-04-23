@@ -6,12 +6,12 @@ import { Ionicons } from '@expo/vector-icons';
  * COMPONENTE: HEADER MINIMALISTA
  * Implementa el diseño requerido: Hamburguesa a la izquierda y Logo + Nombre 'InterGea' centrado.
  */
-export default function Header({ onMenuPress }) {
+export default function Header({ onMenuPress, showBack = false, onBack }) {
   return (
     <View style={styles.headerContainer}>
-      {/* Icono Hamburguesa Izquierda */}
-      <TouchableOpacity onPress={onMenuPress} style={styles.menuButton}>
-        <Ionicons name="menu-outline" size={32} color="#ffffff" />
+      {/* Icono Izquierda: Atrás o Hamburguesa */}
+      <TouchableOpacity onPress={showBack ? onBack : onMenuPress} style={styles.menuButton}>
+        <Ionicons name={showBack ? "arrow-back-outline" : "menu-outline"} size={32} color="#ffffff" />
       </TouchableOpacity>
 
       {/* Logo y Nombre Centrado */}

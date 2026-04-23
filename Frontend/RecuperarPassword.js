@@ -78,13 +78,13 @@ export default function RecuperarPassword({ onBack }) {
       const successMsg = "Se ha enviado un enlace de recuperación a tu correo.";
       if (Platform.OS === 'web') window.alert(successMsg);
       else Alert.alert("Éxito", successMsg);
-      
+
       // Volver a la pantalla de login tras el éxito
       onBack();
     } catch (err) {
       console.error("Error en recuperación:", err.message);
       let errorMsg = "No se pudo enviar el correo: " + err.message;
-      
+
       // Manejo específico del error de Rate Limit de Supabase
       if (err.message.includes("10 seconds") || err.message.includes("Too many requests")) {
         errorMsg = "Por seguridad, debes esperar un momento entre solicitudes. Inténtalo de nuevo en unos segundos.";
@@ -108,7 +108,7 @@ export default function RecuperarPassword({ onBack }) {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         style={{ flex: 1, width: '100%' }}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
           keyboardShouldPersistTaps="handled"
         >
@@ -132,8 +132,8 @@ export default function RecuperarPassword({ onBack }) {
             </Text>
 
             {/* Etiqueta de versión para control de actualizaciones */}
-            <Text style={styles.versionTagFooter}>v1.4.5 - InterGea (Un-delete Fix)</Text>
-            
+            <Text style={styles.versionTagFooter}></Text>
+
             {/* Campo de entrada para el correo */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Correo electrónico:</Text>

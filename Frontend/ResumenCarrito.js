@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
+import Header from './Header';
 
 /**
  * COMPONENTE: RESUMEN DEL CARRITO
@@ -138,14 +139,8 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      {/* HEADER */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#ffffff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Tu Carrito</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      {/* HEADER PREMIUM CON BOTÓN ATRÁS */}
+      <Header showBack={true} onBack={onBack} onMenuPress={() => onNavigate('dashboard')} />
 
       <View style={styles.content}>
         <PaymentModal visible={simulandoPago} />

@@ -86,7 +86,7 @@ export default function MenuLateral({ visible, onClose, onNavigate, userData, on
             </View>
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>InterGea v1.5.0</Text>
+              <Text style={styles.footerText}></Text>
             </View>
           </SafeAreaView>
         </Animated.View>

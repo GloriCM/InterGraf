@@ -104,7 +104,7 @@ export default function Comprador({ userData, onBack, onNavigate, cart, setCart,
     setCiudadSel('Todas');
   };
 
-  // --- Sub-componente: Card de Producto ---
+  // --- Sub-component: Card de Producto ---
   const ProductCard = ({ item }) => {
     const imagenUrl = item.imagenes && item.imagenes.length > 0 ? item.imagenes[0] : null;
 
@@ -112,45 +112,53 @@ export default function Comprador({ userData, onBack, onNavigate, cart, setCart,
       <TouchableOpacity 
         style={styles.productCard}
         onPress={() => onNavigate('detalle_producto', item)}
-        activeOpacity={0.9}
+        activeOpacity={0.8}
       >
         <View style={styles.imageContainer}>
           {imagenUrl ? (
             <Image source={{ uri: imagenUrl }} style={styles.productImage} resizeMode="cover" />
           ) : (
             <View style={styles.noImage}>
-              <Ionicons name="image-outline" size={32} color="#334155" />
+              <Ionicons name="cube-outline" size={40} color="#334155" />
             </View>
           )}
           
           <View style={styles.badgeContainer}>
             {item.stock <= (item.cantidad_minima || 5) && (
               <View style={styles.lowStockBadge}>
+                <Ionicons name="alert-circle" size={10} color="#ffffff" style={{ marginRight: 2 }} />
                 <Text style={styles.lowStockText}>Bajo Stock</Text>
               </View>
             )}
             <View style={styles.cityBadge}>
+              <Ionicons name="location" size={10} color="#38bdf8" style={{ marginRight: 2 }} />
               <Text style={styles.cityText}>{item.Usuarios_Registrados?.ciudad || 'N/A'}</Text>
             </View>
+          </View>
+          
+          <View style={styles.categoryBadge}>
+             <Text style={styles.categoryBadgeText}>{item.categoria || 'Suministro'}</Text>
           </View>
         </View>
 
         <View style={styles.cardInfo}>
-          <Text style={styles.productName} numberOfLines={1}>{item.nombre}</Text>
-          <Text style={styles.sellerName} numberOfLines={1}>
-            {item.Usuarios_Registrados?.razon_social || 'Proveedor'}
-          </Text>
+          <Text style={styles.productName} numberOfLines={2}>{item.nombre}</Text>
+          <View style={styles.sellerRow}>
+            <Ionicons name="business-outline" size={12} color="#64748b" style={{ marginRight: 4 }} />
+            <Text style={styles.sellerName} numberOfLines={1}>
+              {item.Usuarios_Registrados?.razon_social || 'Proveedor'}
+            </Text>
+          </View>
           
           <View style={styles.priceRow}>
-            <Text style={styles.priceCurrency}>$</Text>
-            <Text style={styles.priceValue}>{item.precio?.toLocaleString() || '---'}</Text>
+            <View style={styles.priceContainer}>
+              <Text style={styles.priceCurrency}>$</Text>
+              <Text style={styles.priceValue}>{item.precio?.toLocaleString() || '---'}</Text>
+            </View>
             
-            <TouchableOpacity 
-              style={styles.addIconBtn}
-              onPress={() => onNavigate('detalle_producto', item)}
-            >
-              <Ionicons name="add" size={20} color="#ffffff" />
-            </TouchableOpacity>
+            <View style={styles.addIconBtn}>
+              <Ionicons name="chevron-forward" size={16} color="#ffffff" />
+            </View>
           </View>
         </View>
       </TouchableOpacity>
@@ -161,24 +169,24 @@ export default function Comprador({ userData, onBack, onNavigate, cart, setCart,
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      {/* HEADER */}
+      {/* HEADER INTEGRADO */}
       <View style={styles.header}>
         <Header onMenuPress={onToggleMenu} />
 
-        {/* SEARCH BAR */}
+        {/* SEARCH BAR REFINADA */}
         <View style={styles.searchContainer}>
           <View style={styles.searchWrapper}>
-            <Ionicons name="search" size={20} color="#94a3b8" style={styles.searchIcon} />
+            <Ionicons name="search" size={20} color="#64748b" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder="Buscar tintas, papeles, repuestos..."
-              placeholderTextColor="#64748b"
+              placeholderTextColor="#475569"
               value={search}
               onChangeText={setSearch}
             />
             {search.length > 0 && (
               <TouchableOpacity onPress={() => setSearch('')}>
-                <Ionicons name="close-circle" size={18} color="#94a3b8" />
+                <Ionicons name="close-circle" size={20} color="#64748b" />
               </TouchableOpacity>
             )}
           </View>
@@ -190,11 +198,14 @@ export default function Comprador({ userData, onBack, onNavigate, cart, setCart,
           </TouchableOpacity>
         </View>
 
-        {/* FILTERS (Desplegable) */}
+        {/* FILTERS (Desplegable Premium) */}
         {showFilters && (
           <View style={styles.filtersWrapper}>
             <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Categoría</Text>
+              <View style={styles.filterHeader}>
+                <Ionicons name="layers-outline" size={14} color="#3b82f6" style={{ marginRight: 6 }} />
+                <Text style={styles.filterLabel}>Categoría</Text>
+              </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterOptions}>
                 {categorias.map(cat => (
                   <TouchableOpacity 
@@ -209,7 +220,10 @@ export default function Comprador({ userData, onBack, onNavigate, cart, setCart,
             </View>
 
             <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Ciudad</Text>
+              <View style={styles.filterHeader}>
+                <Ionicons name="location-outline" size={14} color="#3b82f6" style={{ marginRight: 6 }} />
+                <Text style={styles.filterLabel}>Ubicación</Text>
+              </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterOptions}>
                 {ciudades.map(ciu => (
                   <TouchableOpacity 
@@ -225,6 +239,7 @@ export default function Comprador({ userData, onBack, onNavigate, cart, setCart,
 
             {(categoriaSel !== 'Todas' || ciudadSel !== 'Todas') && (
               <TouchableOpacity style={styles.resetFiltersBtn} onPress={resetFilters}>
+                <Ionicons name="refresh-outline" size={14} color="#0ea5e9" style={{ marginRight: 4 }} />
                 <Text style={styles.resetFiltersText}>Limpiar Filtros</Text>
               </TouchableOpacity>
             )}
@@ -232,19 +247,21 @@ export default function Comprador({ userData, onBack, onNavigate, cart, setCart,
         )}
       </View>
 
-      {/* CONTENT */}
+      {/* CONTENT AREA */}
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#3b82f6" />
-          <Text style={styles.loadingText}>Cargando suministros...</Text>
+          <Text style={styles.loadingText}>Cargando catálogo...</Text>
         </View>
       ) : productosFiltrados.length === 0 ? (
         <View style={styles.centered}>
-          <Ionicons name="search-outline" size={64} color="#1e293b" />
-          <Text style={styles.noResultsTitle}>No se encontraron resultados</Text>
-          <Text style={styles.noResultsSubtitle}>Prueba con otros términos o filtros</Text>
+          <View style={styles.noResultsIcon}>
+            <Ionicons name="search-outline" size={48} color="#334155" />
+          </View>
+          <Text style={styles.noResultsTitle}>Sin resultados</Text>
+          <Text style={styles.noResultsSubtitle}>No encontramos productos que coincidan con tu búsqueda.</Text>
           <TouchableOpacity style={styles.resetSearchBtn} onPress={resetFilters}>
-            <Text style={styles.resetSearchBtnText}>Mostrar todos</Text>
+            <Text style={styles.resetSearchBtnText}>Ver todo el catálogo</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -253,7 +270,7 @@ export default function Comprador({ userData, onBack, onNavigate, cart, setCart,
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.resultsHeader}>
-            <Text style={styles.resultsCount}>{productosFiltrados.length} productos encontrados</Text>
+            <Text style={styles.resultsCount}>{productosFiltrados.length} SUMINISTROS DISPONIBLES</Text>
           </View>
           
           <View style={styles.grid}>
@@ -274,79 +291,36 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#0f172a',
-    paddingBottom: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    paddingBottom: 25,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
     shadowColor: '#000',
-    shadowOpacity: 0.4,
-    shadowOffset: { width: 0, height: 10 },
-    shadowRadius: 15,
-    elevation: 10,
+    shadowOpacity: 0.5,
+    shadowOffset: { width: 0, height: 12 },
+    shadowRadius: 20,
+    elevation: 15,
     zIndex: 100,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    marginBottom: 20,
-  },
-  backBtn: {
-    padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-  },
-  headerTitle: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  cartBtn: {
-    padding: 8,
-    position: 'relative',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-  },
-  cartBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#f43f5e',
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#0f172a',
-    paddingHorizontal: 4,
-  },
-  cartBadgeText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '900',
   },
   searchContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
     alignItems: 'center',
+    marginTop: 5,
   },
   searchWrapper: {
     flex: 1,
     flexDirection: 'row',
     backgroundColor: '#1e293b',
-    borderRadius: 16,
+    borderRadius: 18,
     alignItems: 'center',
-    paddingHorizontal: 15,
-    height: 52,
-    marginRight: 10,
+    paddingHorizontal: 16,
+    height: 56,
+    marginRight: 12,
     borderWidth: 1,
     borderColor: '#334155',
   },
   searchIcon: {
-    marginRight: 10,
+    marginRight: 12,
   },
   searchInput: {
     flex: 1,
@@ -355,75 +329,82 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   filterBtn: {
-    width: 52,
-    height: 52,
+    width: 56,
+    height: 56,
     backgroundColor: '#1e293b',
-    borderRadius: 16,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#334155',
   },
   filterBtnActive: {
-    borderColor: '#0ea5e9',
-    backgroundColor: 'rgba(14, 165, 233, 0.1)',
+    borderColor: '#3b82f6',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
   },
   filtersWrapper: {
-    paddingTop: 20,
+    paddingTop: 24,
     paddingHorizontal: 20,
   },
   filterSection: {
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   filterLabel: {
     color: '#94a3b8',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
-    marginBottom: 10,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
   },
   filterOptions: {
     flexDirection: 'row',
   },
   optionChip: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: '#1e293b',
-    marginRight: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: '#0f172a',
+    marginRight: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
   optionChipActive: {
-    backgroundColor: '#0ea5e9',
-    borderColor: '#38bdf8',
-    shadowColor: '#0ea5e9',
+    backgroundColor: '#3b82f6',
+    borderColor: '#60a5fa',
+    shadowColor: '#3b82f6',
     shadowOpacity: 0.4,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 8,
   },
   optionChipText: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   optionChipTextActive: {
     color: '#ffffff',
   },
   resetFiltersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(14, 165, 233, 0.08)',
+    borderRadius: 14,
     alignSelf: 'center',
-    marginTop: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(14, 165, 233, 0.1)',
-    borderRadius: 10,
   },
   resetFiltersText: {
     color: '#0ea5e9',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   centered: {
     flex: 1,
@@ -432,56 +413,67 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   loadingText: {
-    color: '#94a3b8',
-    marginTop: 16,
+    color: '#64748b',
+    marginTop: 20,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  noResultsIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#0f172a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   noResultsTitle: {
     color: '#ffffff',
-    fontSize: 22,
-    fontWeight: '800',
-    marginTop: 24,
+    fontSize: 24,
+    fontWeight: '900',
+    marginBottom: 12,
     textAlign: 'center',
   },
   noResultsSubtitle: {
     color: '#64748b',
-    fontSize: 16,
+    fontSize: 15,
     textAlign: 'center',
-    marginTop: 10,
-    marginBottom: 30,
+    marginBottom: 32,
     lineHeight: 22,
   },
   resetSearchBtn: {
-    backgroundColor: '#0ea5e9',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 16,
-    shadowColor: '#0ea5e9',
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 36,
+    paddingVertical: 18,
+    borderRadius: 20,
+    shadowColor: '#3b82f6',
     shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 15,
+    elevation: 10,
   },
   resetSearchBtnText: {
     color: '#ffffff',
-    fontWeight: '800',
-    fontSize: 16,
-  },
-  scrollContent: {
-    paddingBottom: 40,
-    paddingTop: 10,
-  },
-  resultsHeader: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  resultsCount: {
-    color: '#64748b',
-    fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '900',
+    fontSize: 15,
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  scrollContent: {
+    paddingBottom: 60,
+    paddingTop: 15,
+  },
+  resultsHeader: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    marginBottom: 8,
+  },
+  resultsCount: {
+    color: '#475569',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.5,
   },
   grid: {
     paddingHorizontal: 20,
@@ -492,20 +484,20 @@ const styles = StyleSheet.create({
   productCard: {
     width: (width - 55) / 2,
     backgroundColor: '#0f172a',
-    borderRadius: 24,
-    marginBottom: 20,
+    borderRadius: 28,
+    marginBottom: 24,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#1e293b',
     shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 12,
+    elevation: 6,
   },
   imageContainer: {
     width: '100%',
-    height: 160,
+    height: 150,
     backgroundColor: '#1e293b',
     position: 'relative',
   },
@@ -517,24 +509,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#1e293b',
   },
   badgeContainer: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    right: 10,
-    flexDirection: 'column',
-    alignItems: 'flex-start',
+    top: 12,
+    left: 12,
     gap: 6,
+    zIndex: 10,
   },
   lowStockBadge: {
-    backgroundColor: '#f43f5e',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ef4444',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    shadowColor: '#f43f5e',
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
   },
   lowStockText: {
     color: '#ffffff',
@@ -543,61 +533,87 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   cityBadge: {
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(56, 189, 248, 0.3)',
   },
   cityText: {
-    color: '#cbd5e1',
+    color: '#ffffff',
     fontSize: 9,
-    fontWeight: '700',
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  categoryBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: 'rgba(59, 130, 246, 0.9)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderTopLeftRadius: 12,
+  },
+  categoryBadgeText: {
+    color: '#ffffff',
+    fontSize: 8,
+    fontWeight: '900',
     textTransform: 'uppercase',
   },
   cardInfo: {
-    padding: 15,
+    padding: 16,
   },
   productName: {
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '800',
-    marginBottom: 4,
+    marginBottom: 6,
+    lineHeight: 20,
+    minHeight: 40,
+  },
+  sellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   sellerName: {
     color: '#64748b',
     fontSize: 11,
     fontWeight: '600',
-    marginBottom: 12,
   },
   priceRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
   priceCurrency: {
-    color: '#0ea5e9',
+    color: '#3b82f6',
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
     marginRight: 2,
   },
   priceValue: {
     color: '#ffffff',
     fontSize: 18,
     fontWeight: '900',
-    flex: 1,
   },
   addIconBtn: {
-    backgroundColor: '#0ea5e9',
-    width: 32,
-    height: 32,
-    borderRadius: 12,
+    backgroundColor: '#3b82f6',
+    width: 28,
+    height: 28,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#0ea5e9',
+    shadowColor: '#3b82f6',
     shadowOpacity: 0.4,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 4,
   },
 });

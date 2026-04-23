@@ -24,14 +24,14 @@ export default function App() {
   const [userData, setUserData] = useState(null);
   const [session, setSession] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
-  
+
   // Estados para recuperación de contraseña
   const [recoveryToken, setRecoveryToken] = useState(null);
   const [recoveryRefresh, setRecoveryRefresh] = useState(null);
 
   // Estados para navegación persistente entre componentes
   const [selectedProduct, setSelectedProduct] = useState(null);
-  
+
   // Estado para gestión de mensajería directa
   const [initialRecipientId, setInitialRecipientId] = useState(null);
   const [initialProductContext, setInitialProductContext] = useState(null);
@@ -45,9 +45,9 @@ export default function App() {
     const handleDeepLink = async (url) => {
       if (!url) return;
       console.log("URL de Deep Link abierta (LOG):", url);
-      
+
       const { queryParams } = Linking.parse(url);
-      
+
       const accessTokenMatch = url.match(/[#&?]access_token=([^&]+)/);
       const refreshTokenMatch = url.match(/[#&?]refresh_token=([^&]+)/);
       const typeMatch = url.match(/[#&?]type=([^&]+)/);
@@ -55,11 +55,11 @@ export default function App() {
       const accessToken = accessTokenMatch ? accessTokenMatch[1] : (queryParams?.access_token || "");
       const refreshToken = refreshTokenMatch ? refreshTokenMatch[1] : (queryParams?.refresh_token || "");
       const type = typeMatch ? typeMatch[1] : (queryParams?.type || "");
-      
+
       if (accessToken) {
         setRecoveryToken(accessToken);
         setRecoveryRefresh(refreshToken);
-        
+
         await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
@@ -67,6 +67,17 @@ export default function App() {
       }
 
       if (url.includes('reset-password') || type === 'recovery' || accessToken) {
+        // Detectar si hay un error en la URL (ej. link expirado)
+        const errorMatch = url.match(/[#&?]error=([^&]+)/);
+        const errorDescMatch = url.match(/[#&?]error_description=([^&]+)/);
+
+        if (errorMatch) {
+          const desc = errorDescMatch ? decodeURIComponent(errorDescMatch[1]).replace(/\+/g, ' ') : "El enlace es inválido o ha expirado.";
+          Alert.alert("Enlace Inválido", desc);
+          setCurrentScreen('login');
+          return;
+        }
+
         setTimeout(() => {
           setCurrentScreen('reset_password');
         }, 1000);
@@ -83,7 +94,7 @@ export default function App() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
-      
+
       if (event === 'PASSWORD_RECOVERY') {
         if (session) {
           setRecoveryToken(session.access_token);
@@ -106,7 +117,7 @@ export default function App() {
           }
         }
       }
-      
+
       if (event === 'SIGNED_OUT') {
         setUserData(null);
         setCart([]);
@@ -133,7 +144,7 @@ export default function App() {
   const renderContent = () => {
     if (currentScreen === 'login') {
       return (
-        <Login 
+        <Login
           onLoginSuccess={(data) => {
             setUserData(data);
             setCurrentScreen('dashboard');
@@ -154,10 +165,10 @@ export default function App() {
 
     if (currentScreen === 'reset_password') {
       return (
-        <RestablecerPassword 
-          token={recoveryToken} 
-          refreshToken={recoveryRefresh}
-          onBack={() => setCurrentScreen('login')} 
+        <RestablecerPassword
+          recoveryToken={recoveryToken}
+          recoveryRefresh={recoveryRefresh}
+          onBack={() => setCurrentScreen('login')}
           onSuccess={handleLogout}
         />
       );
@@ -175,7 +186,7 @@ export default function App() {
             <Text style={styles.welcomeText}>¡Bienvenido!</Text>
             <Text style={styles.companyNameText}>{userData.razon_social}</Text>
             <Text style={styles.subtitleText}>Selecciona tu rol inicial</Text>
-            
+
             <View style={styles.roleGrid}>
               <TouchableOpacity style={styles.roleCard} onPress={() => setCurrentScreen('comprador')}>
                 <View style={[styles.roleIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
@@ -196,7 +207,7 @@ export default function App() {
               <TouchableOpacity style={styles.logoutTextButton} onPress={handleLogout}>
                 <Text style={styles.logoutText}>Cerrar Sesión</Text>
               </TouchableOpacity>
-              <Text style={styles.versionTag}>v1.5.0 - InterGea (Modern Header)</Text>
+              <Text style={styles.versionTag}>v1.5.1 - InterGea (Modern Header)</Text>
             </View>
           </View>
         </SafeAreaView>
@@ -205,11 +216,14 @@ export default function App() {
 
     if (currentScreen === 'inventario') {
       return (
-        <Inventario 
-          onBack={() => setCurrentScreen('dashboard')} 
-          onNavigate={setCurrentScreen}
+        <Inventario
+          onBack={() => setCurrentScreen('dashboard')}
+          onNavigate={(screen, params) => {
+            if (params) setSelectedProduct(params);
+            setCurrentScreen(screen);
+          }}
           onToggleMenu={toggleMenu}
-          viewMode="vendedor" 
+          viewMode="vendedor"
           userData={userData}
         />
       );
@@ -217,7 +231,7 @@ export default function App() {
 
     if (currentScreen === 'comprador') {
       return (
-        <Comprador 
+        <Comprador
           userData={userData}
           onBack={() => setCurrentScreen('dashboard')}
           onNavigate={(screen, params) => {
@@ -233,10 +247,13 @@ export default function App() {
 
     if (currentScreen === 'detalle_producto' && selectedProduct) {
       return (
-        <DetalleProducto 
-          producto={selectedProduct} 
-          onBack={() => setCurrentScreen('comprador')} 
-          onNavigate={setCurrentScreen}
+        <DetalleProducto
+          producto={selectedProduct}
+          onBack={() => setCurrentScreen('comprador')}
+          onNavigate={(screen, params) => {
+            if (params) setSelectedProduct(params);
+            setCurrentScreen(screen);
+          }}
           onToggleMenu={toggleMenu}
           onAddToCart={(item) => setCart([...cart, item])}
           userData={userData}
@@ -244,22 +261,57 @@ export default function App() {
       );
     }
 
+    if (currentScreen === 'crear_producto') {
+      return (
+        <CrearProducto
+          onBack={() => setCurrentScreen('inventario')}
+          onNavigate={(screen, params) => {
+            if (params) setSelectedProduct(params);
+            setCurrentScreen(screen);
+          }}
+          userData={userData}
+        />
+      );
+    }
+
+    if (currentScreen === 'editar_producto' && selectedProduct) {
+      return (
+        <CrearProducto
+          producto={selectedProduct}
+          onBack={() => setCurrentScreen('inventario')}
+          onNavigate={(screen, params) => {
+            if (params) setSelectedProduct(params);
+            setCurrentScreen(screen);
+          }}
+          userData={userData}
+        />
+      );
+    }
+
+    const standardNavigate = (screen, params) => {
+      if (params) setSelectedProduct(params);
+      setCurrentScreen(screen);
+    };
+
     // Default simple render for and common screens
-    if (currentScreen === 'perfil') return <Perfil userData={userData} onUpdate={setUserData} onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
-    if (currentScreen === 'mensajeria') return <Mensajeria onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} userData={userData} initialRecipientId={initialRecipientId} initialProductContext={initialProductContext} initialMessageText={initialMessageText} />;
-    if (currentScreen === 'resumen_carrito') return <ResumenCarrito userData={userData} cart={cart} setCart={setCart} onBack={() => setCurrentScreen('comprador')} onNavigate={setCurrentScreen} />;
-    if (currentScreen === 'pedidos_comprador') return <PedidosComprador userData={userData} onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
-    if (currentScreen === 'pedidos_vendedor') return <PedidosVendedor onBack={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} userData={userData} />;
-    
+    if (currentScreen === 'perfil') return <Perfil userData={userData} onUpdate={setUserData} onBack={() => setCurrentScreen('dashboard')} onNavigate={standardNavigate} />;
+    if (currentScreen === 'mensajeria') return <Mensajeria onBack={() => setCurrentScreen('dashboard')} onNavigate={standardNavigate} userData={userData} initialRecipientId={initialRecipientId} initialProductContext={initialProductContext} initialMessageText={initialMessageText} />;
+    if (currentScreen === 'resumen_carrito') return <ResumenCarrito userData={userData} cart={cart} setCart={setCart} onBack={() => setCurrentScreen('comprador')} onNavigate={standardNavigate} />;
+    if (currentScreen === 'pedidos_comprador') return <PedidosComprador userData={userData} onBack={() => setCurrentScreen('dashboard')} onNavigate={standardNavigate} />;
+    if (currentScreen === 'pedidos_vendedor') return <PedidosVendedor onBack={() => setCurrentScreen('dashboard')} onNavigate={standardNavigate} userData={userData} />;
+
     return null;
   };
   return (
     <View style={{ flex: 1 }}>
       {renderContent()}
-      <MenuLateral 
-        visible={menuVisible} 
-        onClose={() => setMenuVisible(false)} 
-        onNavigate={setCurrentScreen}
+      <MenuLateral
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        onNavigate={(screen, params) => {
+          if (params) setSelectedProduct(params);
+          setCurrentScreen(screen);
+        }}
         userData={userData}
         onLogout={handleLogout}
         cartCount={cart.length}

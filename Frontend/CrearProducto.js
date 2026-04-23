@@ -248,7 +248,11 @@ export default function CrearProducto({ onBack, onNavigate, producto, userData }
         <View style={styles.headerIcons}>
           {/* Logo Pequeño */}
           <View style={{ alignItems: 'center', marginRight: 15 }}>
-            <Ionicons name="aperture" size={20} color="#0ea5e9" />
+            <Image 
+              source={require('./assets/LOGO-Sin-Letras.png')} 
+              style={{ height: 25, width: 25, marginBottom: 2 }} 
+              resizeMode="contain" 
+            />
             <Text style={{ fontSize: 6, color: '#0ea5e9', fontWeight: 'bold' }}>INTERGEA</Text>
           </View>
 

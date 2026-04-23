@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
+import Header from './Header';
 
 export default function Mensajeria({ onBack, onNavigate, userData, initialRecipientId, initialProductContext, initialMessageText, onClearInitialRecipient }) {
   // Estado para la vista: 'lista' (Conversaciones) o 'chat' (Mensajes de un pedido)
@@ -579,40 +580,8 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* HEADER DE NAVEGACIÓN (Consistente con toda la app) */}
-      <View style={styles.header}>
-        <View style={styles.headerIcons}>
-          {/* Logo Pequeño */}
-          <View style={{ alignItems: 'center', marginRight: 15 }}>
-            <Ionicons name="aperture" size={20} color="#0ea5e9" />
-            <Text style={{ fontSize: 6, color: '#0ea5e9', fontWeight: 'bold' }}>INTERGEA</Text>
-          </View>
-
-          <TouchableOpacity onPress={() => onNavigate ? onNavigate('dashboard') : onBack()}>
-            <Ionicons name="home" size={22} color="#f8fafc" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
-            <Ionicons name="layers-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('perfil')}>
-            <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity>
-            <Ionicons name="chatbubble" size={24} color="#0ea5e9" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('pedidos_vendedor')}>
-            <Ionicons name="receipt-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('login')}>
-            <Ionicons name="log-out-outline" size={26} color="#f8fafc" style={{ marginLeft: 8 }} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      {/* HEADER GLOBAL */}
+      <Header onMenuPress={() => onNavigate('dashboard')} />
 
       <Text style={styles.mainTitle}>Mensajes</Text>
 

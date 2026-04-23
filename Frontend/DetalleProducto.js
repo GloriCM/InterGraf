@@ -131,8 +131,16 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      {/* HEADER MINIMALISTA */}
-      <Header onMenuPress={onToggleMenu} />
+      {/* HEADER FLOTANTE (Premium) */}
+      <View style={styles.floatingHeader}>
+        <TouchableOpacity style={styles.circleBtn} onPress={onBack}>
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.circleBtn} onPress={onToggleMenu}>
+          <Ionicons name="menu-outline" size={24} color="#ffffff" />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* CARRUSEL DE IMÁGENES */}
@@ -285,15 +293,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#020617',
   },
-  header: {
+  floatingHeader: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 50 : 20,
     left: 0,
     right: 0,
-    height: 60,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 20,
     zIndex: 100,
   },
@@ -301,7 +307,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,

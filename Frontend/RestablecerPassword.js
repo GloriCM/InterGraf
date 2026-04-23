@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView, StatusBar, Alert, ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView, StatusBar, Alert, ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
 
@@ -133,11 +133,12 @@ export default function RestablecerPassword({ onBack, onResetSuccess, recoveryTo
         >
           <View style={styles.card}>
             <View style={styles.logoContainer}>
-              <View style={styles.iconCircle}>
-                <Ionicons name="lock-closed-outline" size={60} color="hsla(199, 54%, 50%, 1.00)" />
-              </View>
+              <Image 
+                source={require('./assets/LOGO-Sin-Letras.png')} 
+                style={styles.logoIcon} 
+                resizeMode="contain" 
+              />
               <Text style={styles.logoText}>SEGURIDAD</Text>
-              <View style={styles.logoUnderline} />
             </View>
 
             <Text style={styles.accessTitle}>Nueva Contraseña</Text>
@@ -238,13 +239,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
+  logoIcon: {
+    height: 60,
+    width: 60,
+    marginBottom: 5,
   },
   logoText: {
     color: '#94a3b8',
