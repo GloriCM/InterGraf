@@ -25,7 +25,7 @@ const { width } = Dimensions.get('window');
  * COMPONENTE: DETALLE DEL PRODUCTO
  * Muestra la información completa de un suministro y permite añadir al carrito o contactar al vendedor.
  */
-export default function DetalleProducto({ userData, producto, onBack, onNavigate, onAddToCart, onToggleMenu }) {
+export default function DetalleProducto({ userData, producto, onBack, onNavigate, onAddToCart, onToggleMenu, cartCount = 0 }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [cantidad, setCantidad] = useState(producto.cantidad_minima || 1);
   const [enviando, setEnviando] = useState(false);
@@ -61,7 +61,12 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
     setEnviando(true);
     try {
         // Añadimos al estado local del carrito sin descontar de la DB todavía
-        onAddToCart({ ...producto, cantidadSeleccionada: numCantidad });
+        // Mapeamos usuario_id a vendedor_id para asegurar la agrupación y visibilidad correcta en VENTAS
+        onAddToCart({ 
+            ...producto, 
+            vendedor_id: producto.usuario_id, 
+            cantidadSeleccionada: numCantidad 
+        });
         
         const msg = `¡${numCantidad} unidad(es) de ${producto.nombre} añadida(s) al carrito!`;
         if (Platform.OS === 'web') {
@@ -137,6 +142,15 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
           <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
         
+        <TouchableOpacity style={styles.circleBtn} onPress={() => onNavigate('resumen_carrito')}>
+          <Ionicons name="cart-outline" size={24} color="#ffffff" />
+          {cartCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{cartCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.circleBtn} onPress={onToggleMenu}>
           <Ionicons name="menu-outline" size={24} color="#ffffff" />
         </TouchableOpacity>
@@ -559,6 +573,24 @@ const styles = StyleSheet.create({
   },
   outOfStockText: {
     color: '#ef4444',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#3b82f6',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#020617',
+  },
+  badgeText: {
+    color: '#ffffff',
     fontSize: 10,
     fontWeight: 'bold',
   },

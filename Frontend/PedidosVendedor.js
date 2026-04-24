@@ -31,6 +31,7 @@ export default function PedidosVendedor({ userData, onBack, onNavigate }) {
   const [busquedaComprador, setBusquedaComprador] = useState('');
   const [busquedaId, setBusquedaId] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [sortOrder, setSortOrder] = useState('desc'); // 'desc' o 'asc'
 
   // Estado para el modal de detalle
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
@@ -82,11 +83,14 @@ export default function PedidosVendedor({ userData, onBack, onNavigate }) {
         .from('pedidos')
         .select(`
           *,
-          comprador:Usuarios_Registrados!pedidos_comprador_id_fkey (id, razon_social, ciudad),
-          detalles:detalle_pedidos (*)
+          comprador:Usuarios_Registrados!pedidos_comprador_id_fkey (id, razon_social, ciudad, direccion, telefono),
+          detalles:detalle_pedidos (
+            *,
+            producto:productos (nombre, imagenes)
+          )
         `)
         .eq('vendedor_id', userData.auth_user_id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: sortOrder === 'asc' });
 
       if (error) {
         // Si la tabla no existe aún, lanzará un error silencioso para el usuario
@@ -253,6 +257,26 @@ export default function PedidosVendedor({ userData, onBack, onNavigate }) {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+
+            <View style={{ marginTop: 20 }}>
+              <Text style={styles.filterLabel}>Orden Chronológico:</Text>
+              <View style={{ flexDirection: 'row' }}>
+                <TouchableOpacity 
+                  style={[styles.chip, sortOrder === 'desc' && styles.chipActive]}
+                  onPress={() => { setSortOrder('desc'); fetchPedidos(); }}
+                >
+                  <Ionicons name="arrow-down" size={12} color={sortOrder === 'desc' ? "#ffffff" : "#94a3b8"} />
+                  <Text style={[styles.chipText, sortOrder === 'desc' && styles.chipTextActive, { marginLeft: 4 }]}>Más recientes primero</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.chip, sortOrder === 'asc' && styles.chipActive]}
+                  onPress={() => { setSortOrder('asc'); fetchPedidos(); }}
+                >
+                  <Ionicons name="arrow-up" size={12} color={sortOrder === 'asc' ? "#ffffff" : "#94a3b8"} />
+                  <Text style={[styles.chipText, sortOrder === 'asc' && styles.chipTextActive, { marginLeft: 4 }]}>Más antiguos primero</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         )}
       </View>
@@ -300,9 +324,16 @@ export default function PedidosVendedor({ userData, onBack, onNavigate }) {
 
                 <ScrollView showsVerticalScrollIndicator={false}>
                   <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>Comprador:</Text>
+                    <Text style={styles.detailLabel}>Datos del Comprador:</Text>
                     <Text style={styles.detailValue}>{pedidoSeleccionado.comprador?.razon_social}</Text>
-                    <Text style={styles.detailSubValue}>{pedidoSeleccionado.comprador?.ciudad || 'Ciudad no especificada'}</Text>
+                    <View style={styles.infoRowDetail}>
+                      <Ionicons name="location-outline" size={14} color="#94a3b8" />
+                      <Text style={styles.detailSubValue}> {pedidoSeleccionado.comprador?.direccion}, {pedidoSeleccionado.comprador?.ciudad}</Text>
+                    </View>
+                    <View style={styles.infoRowDetail}>
+                      <Ionicons name="call-outline" size={14} color="#94a3b8" />
+                      <Text style={styles.detailSubValue}> {pedidoSeleccionado.comprador?.telefono || 'No disponible'}</Text>
+                    </View>
                   </View>
 
                   <View style={styles.detailSection}>
@@ -325,10 +356,10 @@ export default function PedidosVendedor({ userData, onBack, onNavigate }) {
                     {pedidoSeleccionado.detalles?.map((det, index) => (
                       <View key={index} style={styles.productRow}>
                         <View style={styles.productInfo}>
-                          <Text style={styles.productName}>Producto ID: {det.producto_id}</Text>
+                          <Text style={styles.productName}>{det.producto?.nombre || `ID: ${det.producto_id}`}</Text>
                           <Text style={styles.productQty}>Cantidad: {det.cantidad}</Text>
                         </View>
-                        <Text style={styles.productPrice}>${det.precio_unitario * det.cantidad}</Text>
+                        <Text style={styles.productPrice}>${(det.precio_unitario * det.cantidad).toLocaleString()}</Text>
                       </View>
                     ))}
                   </View>
@@ -562,8 +593,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   detailSubValue: {
-    color: '#64748b',
+    color: '#94a3b8',
     fontSize: 14,
+    marginTop: 2,
+  },
+  infoRowDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
   statusPicker: {
     flexDirection: 'row',

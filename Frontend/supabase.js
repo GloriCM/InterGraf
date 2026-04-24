@@ -22,9 +22,9 @@ const isWeb = Platform.OS === 'web';
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: isWeb ? undefined : AsyncStorage, 
-    autoRefreshToken: !isWeb, 
-    persistSession: !isWeb,    
-    detectSessionInUrl: !isWeb,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
   },
 })
 

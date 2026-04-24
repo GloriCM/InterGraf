@@ -152,6 +152,7 @@ export default function Inventario({ userData, onBack, onNavigate, onSelectProdu
   // Opciones: 'nuevo_valor', 'sumar', 'restar'
   const [tipoAjuste, setTipoAjuste] = useState('nuevo_valor');
   const [cantidadAjuste, setCantidadAjuste] = useState('');
+  const [minimoAjuste, setMinimoAjuste] = useState('');
   const [motivoAjuste, setMotivoAjuste] = useState('');
 
   // Estados para ver el historial
@@ -167,6 +168,7 @@ export default function Inventario({ userData, onBack, onNavigate, onSelectProdu
   const abrirModalDeAjuste = (producto) => {
     setProductoAjustado(producto);
     setCantidadAjuste('');
+    setMinimoAjuste(producto.minimo?.toString() || '1');
     setMotivoAjuste('');
     setTipoAjuste('nuevo_valor'); // Por defecto reemplazar todo el valor
     setModalVisible(true);
@@ -213,18 +215,30 @@ export default function Inventario({ userData, onBack, onNavigate, onSelectProdu
       return;
     }
 
+    // Validación de mínimo de compra
+    const minVal = parseInt(minimoAjuste, 10);
+    if (isNaN(minVal) || minVal < 1) {
+      Platform.OS === 'web' 
+        ? window.alert('Error: El mínimo de compra debe ser un número entero mayor o igual a 1.') 
+        : Alert.alert('Error', 'El mínimo de compra debe ser un número entero mayor o igual a 1.');
+      return;
+    }
+
     try {
       // Registrar actualización en Supabase
       const { error } = await supabase
         .from('productos')
-        .update({ stock: nuevoStock })
+        .update({ 
+          stock: nuevoStock,
+          cantidad_minima: minVal
+        })
         .eq('id', productoAjustado.id);
         
       if (error) throw error;
 
       // a) Actualizar el inventario local
       const nuevoInventario = inventario.map(prod => 
-        prod.id === productoAjustado.id ? { ...prod, stock: nuevoStock } : prod
+        prod.id === productoAjustado.id ? { ...prod, stock: nuevoStock, minimo: minVal, cantidadMinima: minVal } : prod
       );
       setInventario(nuevoInventario);
 
@@ -481,6 +495,18 @@ export default function Inventario({ userData, onBack, onNavigate, onSelectProdu
                 value={motivoAjuste}
                 onChangeText={setMotivoAjuste}
                 placeholder="Ej: Corrección por merma, compra local..."
+                placeholderTextColor="#94a3b8"
+              />
+
+              <View style={styles.divider} />
+
+              <Text style={[styles.modalLabel, { color: '#0ea5e9', marginTop: 5 }]}>Mínimo de Compra:</Text>
+              <TextInput
+                style={styles.modalInput}
+                keyboardType="numeric"
+                value={minimoAjuste}
+                onChangeText={setMinimoAjuste}
+                placeholder="Ej: 10"
                 placeholderTextColor="#94a3b8"
               />
 

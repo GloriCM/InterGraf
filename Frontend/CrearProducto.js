@@ -127,80 +127,142 @@ export default function CrearProducto({ onBack, onNavigate, producto, userData }
     }
 
     setLoading(true);
+    console.log("DEBUG: Iniciando proceso de guardado...");
 
     try {
       // 1. Subir imágenes (solo si son nuevas URIs locales)
       const uploadedImageUrls = [];
-      const cleanName = nombre.replace(/[^a-zA-Z0-9]/g, '');
+      const cleanName = nombre.replace(/[^a-zA-Z0-9]/g, '') || 'producto';
       
+      console.log(`DEBUG: Procesando ${imagenes.length} imágenes...`);
+
       for (let i = 0; i < imagenes.length; i++) {
         const logoUri = imagenes[i];
+        console.log(`DEBUG: Procesando imagen ${i + 1}: ${logoUri.substring(0, 50)}...`);
         
         // Si ya es una URL de Supabase (comienza con http), la mantenemos tal cual
         if (logoUri.startsWith('http')) {
+          console.log(`DEBUG: Imagen ${i + 1} ya es remota, saltando upload.`);
           uploadedImageUrls.push(logoUri);
           continue;
         }
 
-        let base64 = "";
+        let fileData;
         let ext = "jpeg";
+        let contentType = "image/jpeg";
 
-        if (Platform.OS === 'web') {
-          const response = await fetch(logoUri);
-          const blob = await response.blob();
-          base64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-          ext = blob.type.split('/')[1] || 'jpeg';
-        } else {
-          base64 = await FileSystem.readAsStringAsync(logoUri, { encoding: 'base64' });
-          ext = logoUri.split('.').pop() || 'jpg';
+        try {
+          if (Platform.OS === 'web') {
+            console.log("DEBUG: Modo Web detectado, obteniendo Blob...");
+            const response = await fetch(logoUri);
+            fileData = await response.blob(); 
+            ext = fileData.type.split('/')[1] || 'jpeg';
+            contentType = fileData.type;
+            console.log(`DEBUG: Blob obtenido. Tipo: ${contentType}, Tamaño: ${fileData.size} bytes`);
+          } else {
+            console.log("DEBUG: Modo Móvil detectado, convirtiendo base64...");
+            const base64 = await FileSystem.readAsStringAsync(logoUri, { encoding: 'base64' });
+            fileData = decode(base64);
+            ext = logoUri.split('.').pop() || 'jpg';
+            contentType = `image/${ext === 'png' ? 'png' : 'jpeg'}`;
+          }
+        } catch (fileErr) {
+          console.error(`DEBUG: Error preparando datos de imagen ${i + 1}:`, fileErr);
+          throw new Error(`No se pudo procesar la imagen ${i + 1}.`);
         }
 
         const fileName = `${cleanName}_${Date.now()}_img${i}.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from('productos_fotos')
-          .upload(fileName, decode(base64), { contentType: `image/${ext}` });
+        console.log(`DEBUG: [IMAGEN ${i+1}] Iniciando subida de ${fileName} (${fileData.size} bytes)...`);
 
-        if (uploadError) throw uploadError;
+        try {
+          // Usamos directamente userData para evitar getSession que puede bloquear en Web
+          console.log("DEBUG: Iniciando subida para usuario:", userData?.auth_user_id || "Sin ID");
 
-        const { data: publicUrlData } = supabase.storage.from('productos_fotos').getPublicUrl(fileName);
-        uploadedImageUrls.push(publicUrlData.publicUrl);
+          const uploadPromise = supabase.storage
+            .from('productos_fotos')
+            .upload(fileName, fileData, { 
+              contentType: contentType,
+              upsert: true,
+              cacheControl: '3600'
+            });
+
+          // Aumentamos el timeout a 30 segundos
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("TIEMPO_EXCEDIDO_STORAGE")), 30000)
+          );
+
+          console.log("DEBUG: Esperando respuesta de Supabase Storage (Max 30s)...");
+          const uploadResult = await Promise.race([uploadPromise, timeoutPromise]);
+          
+          if (uploadResult === null || uploadResult === undefined) {
+             throw new Error("La subida devolvió un resultado nulo inesperado.");
+          }
+
+          const { data: uploadData, error: uploadError } = uploadResult;
+
+          if (uploadError) {
+            console.error("DEBUG: Error detectado en uploadError:", uploadError);
+            throw uploadError;
+          }
+
+          console.log("DEBUG: Registro de subida exitoso en Storage:", uploadData);
+
+          const { data: publicUrlData } = supabase.storage.from('productos_fotos').getPublicUrl(fileName);
+          console.log(`DEBUG: URL Pública generada: ${publicUrlData.publicUrl}`);
+          uploadedImageUrls.push(publicUrlData.publicUrl);
+          
+        } catch (error) {
+          console.error(`DEBUG: Error crítico en subida de imagen ${i + 1}:`, error.message);
+          let userMsg = "Error al subir la imagen.";
+          if (error.message === "TIEMPO_EXCEDIDO_STORAGE") {
+            userMsg = "La subida de imagen está tardando demasiado. Revisa tu conexión o el tamaño de la foto.";
+          } else if (error.message.includes("403") || error.message.includes("Permission denied")) {
+            userMsg = "No tienes permiso para subir archivos. Revisa las políticas RLS en Supabase.";
+          }
+          throw new Error(userMsg + " (" + error.message + ")");
+        }
       }
 
-      // 2. Insertar o Actualizar en Base de Datos
+      // 2. Preparar Datos para Base de Datos
+      console.log("DEBUG: Preparando datos para la base de datos...");
+      
       const productoDatos = {
         usuario_id: userData?.id || null,
-        nombre,
+        nombre: nombre.trim(),
         precio: precioUnitarioNum,
         stock: stockNum,
-        descripcion_tecnica: descripcionTecnica,
-        categoria,
-        precios_volumen: preciosVolumen,
+        descripcion_tecnica: descripcionTecnica.trim(),
+        categoria: categoria.trim(),
+        precios_volumen: preciosVolumen.trim(),
         cantidad_minima: cantidadMinNum,
-        tiempo_estimado: tiempoEstimado,
+        tiempo_estimado: tiempoEstimado.trim(),
         imagenes: uploadedImageUrls
       };
 
+      console.log("DEBUG: Datos a enviar:", JSON.stringify(productoDatos, null, 2));
+
       let query;
       if (esEdicion) {
+        console.log(`DEBUG: Actualizando producto ID: ${producto.id}`);
         query = supabase
           .from('productos')
           .update(productoDatos)
           .eq('id', producto.id);
       } else {
+        console.log("DEBUG: Insertando nuevo producto...");
         query = supabase
           .from('productos')
           .insert([productoDatos]);
       }
 
-      const { error } = await query.select();
+      const { data: resultData, error: dbError } = await query.select();
 
-      if (error) throw error;
+      if (dbError) {
+        console.error("DEBUG: Supabase DB Error:", dbError);
+        throw dbError;
+      }
 
+      console.log("DEBUG: Operación DB exitosa:", resultData);
       setLoading(false);
       
       const tituloExito = esEdicion ? '¡Producto Actualizado!' : '¡Producto Creado!';

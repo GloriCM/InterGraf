@@ -8,8 +8,10 @@ const { width } = Dimensions.get('window');
  * COMPONENTE: MENÚ LATERAL (DRAWER)
  * Proporciona acceso a todas las funcionalidades que eliminamos de la barra superior.
  */
-export default function MenuLateral({ visible, onClose, onNavigate, userData, onLogout, cartCount }) {
+export default function MenuLateral({ visible, onClose, onNavigate, userData, onLogout, cartCount, currentScreen }) {
   if (!visible) return null;
+
+  const isVendedorMode = ['inventario', 'pedidos_vendedor', 'crear_producto', 'editar_producto'].includes(currentScreen);
 
   return (
     <Modal
@@ -48,22 +50,41 @@ export default function MenuLateral({ visible, onClose, onNavigate, userData, on
                 label="Cambio de Rol"
                 onPress={() => { onNavigate('dashboard'); onClose(); }}
               />
-              <MenuItem
-                icon="layers-outline"
-                label="Inventario / Catálogo"
-                onPress={() => { onNavigate('inventario'); onClose(); }}
-              />
-              <MenuItem
-                icon="cart-outline"
-                label="Mi Carrito"
-                badge={cartCount}
-                onPress={() => { onNavigate('resumen_carrito'); onClose(); }}
-              />
-              <MenuItem
-                icon="receipt-outline"
-                label="Mis Pedidos"
-                onPress={() => { onNavigate('pedidos_comprador'); onClose(); }}
-              />
+
+              {isVendedorMode ? (
+                <>
+                  <MenuItem
+                    icon="layers-outline"
+                    label="Mi Inventario"
+                    onPress={() => { onNavigate('inventario'); onClose(); }}
+                  />
+                  <MenuItem
+                    icon="cash-outline"
+                    label="Pedidos Recibidos (Ventas)"
+                    onPress={() => { onNavigate('pedidos_vendedor'); onClose(); }}
+                  />
+                </>
+              ) : (
+                <>
+                  <MenuItem
+                    icon="grid-outline"
+                    label="Catálogo de Insumos"
+                    onPress={() => { onNavigate('comprador'); onClose(); }}
+                  />
+                  <MenuItem
+                    icon="cart-outline"
+                    label="Mi Carrito"
+                    badge={cartCount}
+                    onPress={() => { onNavigate('resumen_carrito'); onClose(); }}
+                  />
+                  <MenuItem
+                    icon="receipt-outline"
+                    label="Mis Pedidos (Compras)"
+                    onPress={() => { onNavigate('pedidos_comprador'); onClose(); }}
+                  />
+                </>
+              )}
+
               <MenuItem
                 icon="chatbubble-ellipses-outline"
                 label="Mensajería"

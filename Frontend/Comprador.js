@@ -171,7 +171,11 @@ export default function Comprador({ userData, onBack, onNavigate, cart, setCart,
       
       {/* HEADER INTEGRADO */}
       <View style={styles.header}>
-        <Header onMenuPress={onToggleMenu} />
+        <Header 
+          onMenuPress={onToggleMenu} 
+          onCartPress={() => onNavigate('resumen_carrito')}
+          cartCount={cart?.length || 0}
+        />
 
         {/* SEARCH BAR REFINADA */}
         <View style={styles.searchContainer}>

@@ -249,7 +249,13 @@ export default function App() {
       return (
         <DetalleProducto
           producto={selectedProduct}
-          onBack={() => setCurrentScreen('comprador')}
+          onBack={() => {
+            if (selectedProduct?.fromCart) {
+              setCurrentScreen('resumen_carrito');
+            } else {
+              setCurrentScreen('comprador');
+            }
+          }}
           onNavigate={(screen, params) => {
             if (params) setSelectedProduct(params);
             setCurrentScreen(screen);
@@ -257,6 +263,7 @@ export default function App() {
           onToggleMenu={toggleMenu}
           onAddToCart={(item) => setCart([...cart, item])}
           userData={userData}
+          cartCount={cart.length}
         />
       );
     }
@@ -308,6 +315,7 @@ export default function App() {
       <MenuLateral
         visible={menuVisible}
         onClose={() => setMenuVisible(false)}
+        currentScreen={currentScreen}
         onNavigate={(screen, params) => {
           if (params) setSelectedProduct(params);
           setCurrentScreen(screen);

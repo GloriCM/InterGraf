@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,7 +11,8 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
-  Modal
+  Modal,
+  TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
@@ -25,14 +26,117 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
   const [procesando, setProcesando] = useState(false);
   const [simulandoPago, setSimulandoPago] = useState(false);
 
+  useEffect(() => {
+    revalidarCarrito();
+  }, []);
+
+  /**
+   * Revalida los datos de los productos (stock, precio, mínimos) con la base de datos.
+   */
+  const revalidarCarrito = async () => {
+    if (cart.length === 0) return;
+    
+    try {
+      const ids = cart.map(item => item.id);
+      const { data, error } = await supabase
+        .from('productos')
+        .select('*')
+        .in('id', ids);
+
+      if (error) throw error;
+
+      if (data) {
+        setCart(prev => prev.map(item => {
+          const fresh = data.find(p => p.id === item.id);
+          if (!fresh) return item; // Si ya no existe, el handleFinalizarCompra fallará o lo removemos?
+
+          return {
+            ...item,
+            vendedor_id: fresh.usuario_id,
+            stock: fresh.stock,
+            precio: fresh.precio,
+            cantidad_minima: fresh.cantidad_minima
+          };
+        }));
+      }
+    } catch (err) {
+      console.error("Error revalidando carrito:", err.message);
+    }
+  };
+
   const total = cart.reduce((acc, item) => acc + (item.precio * item.cantidadSeleccionada), 0);
 
   /**
-   * Elimina un producto del carrito y DEVUELVE el stock a la base de datos.
+   * Elimina un producto del carrito.
    */
   const handleRemoveItem = (item) => {
-    // Solo removemos del estado local (ya que el stock no se descuenta al añadir)
     setCart(prev => prev.filter(i => i.id !== item.id));
+  };
+
+  /**
+   * Actualiza la cantidad de un producto en el carrito validando stock y mínimos.
+   */
+  const handleUpdateQuantity = (item, delta) => {
+    const newQuantity = item.cantidadSeleccionada + delta;
+    
+    if (newQuantity < (item.cantidad_minima || 1)) {
+        return;
+    }
+    
+    if (newQuantity > (item.stock || 0)) {
+        if (Platform.OS === 'web') {
+            window.alert(`Sólo hay ${item.stock} unidades disponibles.`);
+        } else {
+            Alert.alert("Límite de Stock", `Sólo hay ${item.stock} unidades disponibles.`);
+        }
+        return;
+    }
+
+    setCart(prev => prev.map(it => 
+        it.id === item.id ? { ...it, cantidadSeleccionada: newQuantity } : it
+    ));
+  };
+
+  /**
+   * Maneja el cambio manual de cantidad vía TextInput.
+   */
+  const handleManualQuantity = (item, text) => {
+    // Solo permitir dígitos
+    const cleanText = text.replace(/[^0-9]/g, '');
+    if (cleanText === '') {
+        // Permitir temporalmente vacío para que el usuario pueda escribir
+        setCart(prev => prev.map(it => 
+            it.id === item.id ? { ...it, cantidadSeleccionada: 0 } : it
+        ));
+        return;
+    }
+
+    const newVal = parseInt(cleanText, 10);
+    const stock = item.stock || 0;
+    
+    // Si supera el stock, forzar al máximo
+    if (newVal > stock) {
+        setCart(prev => prev.map(it => 
+            it.id === item.id ? { ...it, cantidadSeleccionada: stock } : it
+        ));
+        return;
+    }
+
+    setCart(prev => prev.map(it => 
+        it.id === item.id ? { ...it, cantidadSeleccionada: newVal } : it
+    ));
+  };
+
+  /**
+   * Valida al perder el foco que no sea menor al mínimo.
+   */
+  const validateOnBlur = (item) => {
+    const min = item.cantidad_minima || 1;
+    if (item.cantidadSeleccionada < min) {
+        setCart(prev => prev.map(it => 
+            it.id === item.id ? { ...it, cantidadSeleccionada: min } : it
+        ));
+    }
   };
 
   /**
@@ -121,11 +225,36 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
 
   const renderItem = ({ item }) => (
     <View style={styles.cartItem}>
-      <View style={styles.itemInfo}>
-        <Text style={styles.itemName}>{item.nombre}</Text>
-        <Text style={styles.itemSub}>{item.categoria} - Cant: {item.cantidadSeleccionada}</Text>
-        <Text style={styles.itemPrice}>${item.precio * item.cantidadSeleccionada}</Text>
+      <TouchableOpacity 
+        style={styles.itemInfo}
+        onPress={() => onNavigate('detalle_producto', { ...item, fromCart: true })}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.itemName} numberOfLines={1}>{item.nombre}</Text>
+        <Text style={styles.itemSub}>{item.categoria}</Text>
+        <Text style={styles.itemPrice}>${(item.precio * item.cantidadSeleccionada).toLocaleString()}</Text>
+      </TouchableOpacity>
+
+      <View style={styles.quantitySelector}>
+        <TouchableOpacity 
+            style={[styles.qtyBtn, item.cantidadSeleccionada <= (item.cantidad_minima || 1) && styles.qtyBtnDisabled]} 
+            onPress={() => handleUpdateQuantity(item, -1)}
+            disabled={item.cantidadSeleccionada <= (item.cantidad_minima || 1)}
+        >
+            <Ionicons name="remove" size={18} color={item.cantidadSeleccionada <= (item.cantidad_minima || 1) ? "#475569" : "#ffffff"} />
+        </TouchableOpacity>
+        
+        <Text style={styles.qtyText}>{item.cantidadSeleccionada}</Text>
+        
+        <TouchableOpacity 
+            style={[styles.qtyBtn, item.cantidadSeleccionada >= (item.stock || 0) && styles.qtyBtnDisabled]} 
+            onPress={() => handleUpdateQuantity(item, 1)}
+            disabled={item.cantidadSeleccionada >= (item.stock || 0)}
+        >
+            <Ionicons name="add" size={18} color={item.cantidadSeleccionada >= (item.stock || 0) ? "#475569" : "#ffffff"} />
+        </TouchableOpacity>
       </View>
+
       <TouchableOpacity 
         style={styles.removeBtn} 
         onPress={() => handleRemoveItem(item)}
@@ -276,6 +405,35 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  quantitySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e293b',
+    borderRadius: 14,
+    padding: 4,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  qtyBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#0f172a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qtyBtnDisabled: {
+    opacity: 0.3,
+  },
+  qtyText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginHorizontal: 12,
+    minWidth: 20,
+    textAlign: 'center',
   },
   footer: {
     padding: 24,
