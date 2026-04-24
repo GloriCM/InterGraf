@@ -15,12 +15,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
+import Header from './Header';
 
 /**
  * COMPONENTE: PEDIDOS COMPRADOR (Sección 3.4)
  * Muestra el historial de compras realizadas por la empresa.
  */
-export default function PedidosComprador({ userData, onBack, onNavigate }) {
+export default function PedidosComprador({ userData, onBack, onNavigate, onToggleMenu }) {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -166,12 +167,14 @@ export default function PedidosComprador({ userData, onBack, onNavigate }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      {/* HEADER */}
+      {/* HEADER PRINCIPAL INTERGEA */}
+      <Header onMenuPress={onToggleMenu} />
+
+      {/* HEADER DE LA SECCIÓN (MIS PEDIDOS) */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#ffffff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mis Compras</Text>
+        {/* Espaciador invisible para mantener el título centrado */}
+        <View style={{ width: 34 }} />
+        <Text style={styles.headerTitle}>Mis Pedidos</Text>
         <TouchableOpacity onPress={fetchPedidos} style={styles.refreshBtn}>
           <Ionicons name="refresh-outline" size={22} color="#ffffff" />
         </TouchableOpacity>

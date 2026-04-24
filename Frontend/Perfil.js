@@ -18,8 +18,9 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from './supabase';
+import Header from './Header';
 
-export default function Perfil({ userData, onUpdate, onBack, onNavigate }) {
+export default function Perfil({ userData, onUpdate, onBack, onNavigate, onToggleMenu }) {
   const [razonSocial, setRazonSocial] = useState(userData?.razon_social || '');
   const [direccion, setDireccion] = useState(userData?.direccion || '');
   const [descripcion, setDescripcion] = useState(userData?.descripcion || '');
@@ -181,43 +182,8 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* HEADER DE NAVEGACIÓN */}
-      <View style={styles.header}>
-        <View style={styles.headerIcons}>
-          {/* Logo Pequeño */}
-          <View style={{ alignItems: 'center', marginRight: 15 }}>
-            <Ionicons name="aperture" size={20} color="#0ea5e9" />
-            <Text style={{ fontSize: 6, color: '#0ea5e9', fontWeight: 'bold' }}>INTERGEA</Text>
-          </View>
-
-          <TouchableOpacity onPress={() => onNavigate ? onNavigate('dashboard') : onBack()}>
-            <Ionicons name="home" size={22} color="#f8fafc" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
-            <Ionicons name="layers-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity>
-            <Ionicons name="person-circle" size={30} color="#0ea5e9" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('mensajeria')}>
-            <Ionicons name="chatbubble-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('pedidos_vendedor')}>
-            <Ionicons name="receipt-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => {
-              supabase.auth.signOut();
-              if(onNavigate) onNavigate('login');
-          }}>
-            <Ionicons name="log-out-outline" size={26} color="#f8fafc" style={{ marginLeft: 8 }} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      {/* HEADER DE NAVEGACIÓN (MENÚ LATERAL) */}
+      <Header onMenuPress={onToggleMenu} />
 
       <Text style={styles.title}>Editar Perfil</Text>
 
@@ -325,23 +291,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#020617',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 20,
-    paddingBottom: 20,
-  },
-  headerIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)'
   },
 
   title: {
