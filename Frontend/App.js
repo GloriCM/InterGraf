@@ -294,7 +294,7 @@ export default function App() {
     };
 
     // Default simple render for and common screens
-    if (currentScreen === 'perfil') return <Perfil userData={userData} onUpdate={setUserData} onBack={() => setCurrentScreen('dashboard')} onNavigate={standardNavigate} />;
+    if (currentScreen === 'perfil') return <Perfil userData={userData} onUpdate={setUserData} onBack={() => setCurrentScreen('dashboard')} onNavigate={standardNavigate} onToggleMenu={toggleMenu} />;
     if (currentScreen === 'mensajeria') return <Mensajeria onBack={() => setCurrentScreen('dashboard')} onNavigate={standardNavigate} userData={userData} initialRecipientId={initialRecipientId} initialProductContext={initialProductContext} initialMessageText={initialMessageText} />;
     if (currentScreen === 'resumen_carrito') return <ResumenCarrito userData={userData} cart={cart} setCart={setCart} onBack={() => setCurrentScreen('comprador')} onNavigate={standardNavigate} />;
     if (currentScreen === 'pedidos_comprador') return <PedidosComprador userData={userData} onBack={() => setCurrentScreen('dashboard')} onNavigate={standardNavigate} onToggleMenu={toggleMenu} />;
