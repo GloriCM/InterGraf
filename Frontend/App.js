@@ -207,7 +207,7 @@ export default function App() {
               <TouchableOpacity style={styles.logoutTextButton} onPress={handleLogout}>
                 <Text style={styles.logoutText}>Cerrar Sesión</Text>
               </TouchableOpacity>
-              <Text style={styles.versionTag}>v1.5.1 - InterGea (Modern Header)</Text>
+              <Text style={styles.versionTag}>v1.5.5 - InterGea (Modern Header)</Text>
             </View>
           </View>
         </SafeAreaView>
