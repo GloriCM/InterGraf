@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -27,8 +27,35 @@ const { width } = Dimensions.get('window');
  */
 export default function DetalleProducto({ userData, producto, onBack, onNavigate, onAddToCart, onToggleMenu }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [cantidad, setCantidad] = useState(producto.cantidad_minima || 1);
+  const [cantidad, setCantidad] = useState(producto?.cantidad_minima || 1);
   const [enviando, setEnviando] = useState(false);
+  const [sellerRating, setSellerRating] = useState({ avg: 0, total: 0 });
+
+  useEffect(() => {
+    fetchSellerRating();
+  }, [producto]);
+
+  const fetchSellerRating = async () => {
+    const sellerAuthId = producto?.Usuarios_Registrados?.auth_user_id;
+    if (!sellerAuthId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('pedidos')
+        .select('calificacion')
+        .eq('vendedor_id', sellerAuthId)
+        .gt('calificacion', 0);
+
+      if (!error && data) {
+        if (data.length > 0) {
+          const avg = (data.reduce((a, b) => a + b.calificacion, 0) / data.length).toFixed(1);
+          setSellerRating({ avg, total: data.length });
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching seller rating:", err.message);
+    }
+  };
 
   if (!producto) return null;
 
@@ -202,6 +229,19 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.sellerName}>{producto.Usuarios_Registrados?.razon_social || 'Empresa proveedora'}</Text>
+                
+                {sellerRating.total > 0 && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                    <Ionicons name="star" size={12} color="#facc15" />
+                    <Text style={{ color: '#facc15', fontSize: 12, fontWeight: 'bold', marginLeft: 4 }}>
+                      {sellerRating.avg}
+                    </Text>
+                    <Text style={{ color: '#94a3b8', fontSize: 10, marginLeft: 4 }}>
+                      ({sellerRating.total} reseñas)
+                    </Text>
+                  </View>
+                )}
+
                 <Text style={styles.sellerLocation}>
                   <Ionicons name="location-outline" size={12} color="#94a3b8" /> {producto.Usuarios_Registrados?.ciudad || 'Ubicación no disponible'}
                 </Text>

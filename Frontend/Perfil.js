@@ -29,7 +29,8 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate, onToggl
   const [newImageSelected, setNewImageSelected] = useState(false);
 
   // Estados para estadísticas dinámicas
-  const [stats, setStats] = useState({ ingresos: 0, ventas: 0 });
+  const [stats, setStats] = useState({ ingresos: 0, ventas: 0, avgCalificacion: 0, totalCalificaciones: 0 });
+  const [comentarios, setComentarios] = useState([]);
   const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
@@ -44,8 +45,15 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate, onToggl
       // Obtenemos los pedidos donde el usuario es el vendedor
       const { data, error } = await supabase
         .from('pedidos')
-        .select('total, estado')
-        .eq('vendedor_id', userData.auth_user_id);
+        .select(`
+          total, 
+          estado,
+          calificacion,
+          comentario_calificacion,
+          comprador:Usuarios_Registrados!pedidos_comprador_id_fkey (razon_social)
+        `)
+        .eq('vendedor_id', userData.auth_user_id)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -54,10 +62,29 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate, onToggl
         const validOrders = data.filter(p => p.estado !== 'Cancelado');
         const totalIngresos = validOrders.reduce((acc, p) => acc + (p.total || 0), 0);
         
+        const calificaciones = validOrders.filter(p => p.calificacion > 0);
+        const avg = calificaciones.length > 0 
+          ? (calificaciones.reduce((acc, p) => acc + p.calificacion, 0) / calificaciones.length).toFixed(1)
+          : 0;
+          
         setStats({
           ingresos: totalIngresos,
-          ventas: data.length
+          ventas: data.length,
+          avgCalificacion: avg,
+          totalCalificaciones: calificaciones.length
         });
+        
+        const coms = calificaciones
+          .filter(p => p.comentario_calificacion)
+          .map((p, index) => ({
+            id: index.toString(),
+            calificacion: p.calificacion,
+            comentario: p.comentario_calificacion,
+            comprador: p.comprador?.razon_social || 'Comprador'
+          }))
+          .slice(0, 5); // Tomamos los últimos 5
+          
+        setComentarios(coms);
       }
     } catch (err) {
       console.error("Error cargando estadísticas:", err.message);
@@ -280,7 +307,50 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate, onToggl
             )}
         </View>
 
-        <View style={[styles.statsOuterCard, { minHeight: 90 }]} />
+        <View style={styles.statsOuterCard}>
+          <Text style={styles.statsLabelWhite}>Calificación Promedio</Text>
+          <View style={styles.statsGrowthRow}>
+            <View style={[styles.growthIconContainer, { backgroundColor: 'rgba(250, 204, 21, 0.2)' }]}>
+              <Ionicons name="star" size={28} color="#facc15" />
+            </View>
+            <View>
+              {loadingStats ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                  <>
+                    <Text style={[styles.statsValueMain, { color: '#facc15' }]}>{stats.avgCalificacion} / 5</Text>
+                    <Text style={styles.statsValueSub}>({stats.totalCalificaciones} reseñas)</Text>
+                  </>
+              )}
+            </View>
+          </View>
+        </View>
+
+        {comentarios.length > 0 && (
+          <View style={styles.commentsSection}>
+            <Text style={styles.commentsTitle}>Comentarios Recientes</Text>
+            {comentarios.map((c, index) => (
+              <View key={index} style={styles.commentCard}>
+                <View style={styles.commentHeader}>
+                  <Text style={styles.commentAuthor}>{c.comprador}</Text>
+                  <View style={styles.commentStars}>
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <Ionicons 
+                        key={star} 
+                        name={star <= c.calificacion ? "star" : "star-outline"} 
+                        size={12} 
+                        color={star <= c.calificacion ? "#facc15" : "#475569"} 
+                      />
+                    ))}
+                  </View>
+                </View>
+                <Text style={styles.commentText}>"{c.comentario}"</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View style={[styles.statsOuterCard, { minHeight: 40, borderWidth: 0 }]} />
 
       </ScrollView>
     </SafeAreaView>
@@ -480,5 +550,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 20,
+  },
+  commentsSection: {
+    width: '85%',
+    marginTop: 10,
+    marginBottom: 30,
+  },
+  commentsTitle: {
+    color: '#94a3b8',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 15,
+  },
+  commentCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  commentAuthor: {
+    color: '#e2e8f0',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  commentStars: {
+    flexDirection: 'row',
+  },
+  commentText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    fontStyle: 'italic',
   },
 });

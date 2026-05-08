@@ -67,10 +67,12 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
       }
 
       // 3. Creación de Pedidos (Agrupados por vendedor)
-      const vendedoresIds = [...new Set(cart.map(item => item.vendedor_id))];
+      const vendedoresIds = [...new Set(cart.map(item => item.Usuarios_Registrados?.auth_user_id || item.vendedor_id))];
 
       for (const vId of vendedoresIds) {
-        const itemsVendedor = cart.filter(it => it.vendedor_id === vId);
+        if (!vId) continue; // Prevenir errores si no hay vendedor identificado
+
+        const itemsVendedor = cart.filter(it => (it.Usuarios_Registrados?.auth_user_id || it.vendedor_id) === vId);
         const subtotal = itemsVendedor.reduce((acc, it) => acc + (it.precio * it.cantidadSeleccionada), 0);
 
         const { data: pedido, error: pedidoError } = await supabase

@@ -65,6 +65,11 @@ export default function MenuLateral({ visible, onClose, onNavigate, userData, on
                 onPress={() => { onNavigate('pedidos_comprador'); onClose(); }}
               />
               <MenuItem
+                icon="archive-outline"
+                label="Pedidos Recibidos"
+                onPress={() => { onNavigate('pedidos_vendedor'); onClose(); }}
+              />
+              <MenuItem
                 icon="chatbubble-ellipses-outline"
                 label="Mensajería"
                 onPress={() => { onNavigate('mensajeria'); onClose(); }}
