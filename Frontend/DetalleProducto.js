@@ -60,11 +60,10 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
 
     setEnviando(true);
     try {
-        // Añadimos al estado local del carrito sin descontar de la DB todavía
-        // Mapeamos usuario_id a vendedor_id para asegurar la agrupación y visibilidad correcta en VENTAS
+        // Añadimos al estado local del carrito usando el auth_user_id (UUID) del vendedor
         onAddToCart({ 
             ...producto, 
-            vendedor_id: producto.usuario_id, 
+            vendedor_id: producto.Usuarios_Registrados?.auth_user_id || producto.usuario_id, 
             cantidadSeleccionada: numCantidad 
         });
         

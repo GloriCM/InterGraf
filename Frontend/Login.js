@@ -23,105 +23,34 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
     setLoading(true);
 
     try {
-      console.log("Iniciando Pre-vuelo de conectividad (v1.3.3)...");
-      const { data: pingData, error: pingError } = await supabase.from('Usuarios_Registrados').select('id').limit(1);
-
-      if (pingError) {
-        console.error("Fallo de Pre-vuelo (Conexión/CORS):", pingError.message);
-        throw new Error("PRE_VUELO_FALLIDO: " + pingError.message);
-      }
-      console.log("Pre-vuelo EXITOSO. Procediendo a Auth...");
-
-      console.log("Intentando signInWithPassword (v1.3.3)...");
-
-      // Definimos un tiempo de espera de 12 segundos para no dejar al usuario colgado
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("TIEMPO_EXCEDIDO")), 12000)
-      );
-
-      // Carrera entre la petición real y el timeout
-      const { data: authData, error: authError } = await Promise.race([
-        supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password: password.trim(),
-        }),
-        timeoutPromise
-      ]);
-
-      console.log("Respuesta Auth recibida:", authData ? "Éxito" : "Sin Datos");
+      console.log("Intentando signInWithPassword directo...");
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
+      });
 
       if (authError) {
         setLoading(false);
         let mensaje = "Correo o contraseña incorrectos.";
-
-        // Si el correo no está verificado, Supabase devuelve un error específico
-        if (authError.message.includes('Email not confirmed')) {
-          mensaje = "Tu correo aún no ha sido verificado. Revisa tu bandeja de entrada (o spam) y haz clic en el enlace de verificación.";
+        if (authError.message.includes('Email confirmed')) {
+           // Nota: El error 'Email confirmed' suele ser lo opuesto, 
+           // pero mantenemos la lógica de verificación por si acaso.
         }
-
-        if (Platform.OS === 'web') {
-          window.alert(mensaje);
-        } else {
-          Alert.alert("Error de acceso", mensaje);
-        }
+        
+        if (Platform.OS === 'web') window.alert(authError.message);
+        else Alert.alert("Error de acceso", authError.message);
         return;
       }
 
-      // Login exitoso en Auth, ahora obtenemos los datos de la empresa
-      const authUserId = authData.user.id;
-      console.log("Buscando empresa en DB para UID:", authUserId);
-
-      const { data: empresaData, error: empresaError } = await supabase
-        .from('Usuarios_Registrados')
-        .select('*')
-        .eq('auth_user_id', authUserId)
-        .maybeSingle();
-
-      if (empresaError) {
-        setLoading(false);
-        alert("Error al obtener datos de la empresa.");
-        return;
-      }
-
-      if (!empresaData) {
-        setLoading(false);
-        // Usuario existe en Auth pero no en nuestra tabla (caso raro)
-        if (Platform.OS === 'web') {
-          window.alert("No se encontraron datos de empresa asociados a esta cuenta.");
-        } else {
-          Alert.alert("Error", "No se encontraron datos de empresa asociados a esta cuenta.");
-        }
-        return;
-      }
-
-      // Actualizar estado a Verificado si aún está pendiente (el login exitoso confirma verificación)
-      if (empresaData.estado === 'Pendiente de verificación') {
-        await supabase
-          .from('Usuarios_Registrados')
-          .update({ estado: 'Verificado' })
-          .eq('id', empresaData.id);
-        empresaData.estado = 'Verificado';
-      }
-
-      setLoading(false);
-      onLoginSuccess(empresaData);
+      console.log("Login exitoso en Auth. Esperando redirección de App.js...");
+      // No llamamos a onLoginSuccess aquí porque App.js tiene un listener onAuthStateChange
+      // que detectará el evento SIGNED_IN y hará el cambio de pantalla automáticamente.
 
     } catch (err) {
       setLoading(false);
-      console.error("Error en login:", err.message);
-
-      let errorMsg = "Ocurrió un error al intentar ingresar.";
-      if (err.message === "TIEMPO_EXCEDIDO") {
-        errorMsg = "La conexión está tardando demasiado. Revisa tu internet o intenta de nuevo.";
-      } else if (err.message.includes("PRE_VUELO_FALLIDO")) {
-        errorMsg = "No se pudo conectar con el servidor. Verifica que no tengas extensiones bloqueadoras o problemas de red.";
-      }
-
-      if (Platform.OS === 'web') {
-        window.alert(errorMsg);
-      } else {
-        Alert.alert("Error", errorMsg);
-      }
+      console.error("Error crítico en login:", err.message);
+      if (Platform.OS === 'web') window.alert("Error: " + err.message);
+      else Alert.alert("Error", err.message);
     }
   };
 
