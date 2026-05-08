@@ -29,8 +29,8 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
   
   // Estados para filtros
   const [filtroEstado, setFiltroEstado] = useState('Todos');
-  const [busquedaComprador, setBusquedaComprador] = useState('');
-  const [busquedaId, setBusquedaId] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [filtroFecha, setFiltroFecha] = useState(''); // Formato esperado: YYYY-MM-DD
   const [showFilters, setShowFilters] = useState(false);
   const [sortOrder, setSortOrder] = useState('desc'); // 'desc' o 'asc'
 
@@ -110,13 +110,22 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
   };
 
   /**
-   * Lógica de filtrado en el cliente para los pedidos cargados.
+   * Lógica de filtrado en el cliente para los pedidos cargados (RF-013).
    */
   const pedidosFiltrados = pedidos.filter(p => {
+    // 1. Filtro por Estado
     const matchEstado = filtroEstado === 'Todos' || p.estado === filtroEstado;
-    const matchComprador = p.comprador?.razon_social?.toLowerCase().includes(busquedaComprador.toLowerCase());
-    const matchId = p.id.toString().includes(busquedaId);
-    return matchEstado && matchComprador && matchId;
+    
+    // 2. Filtro por Texto (Comprador o Número de Pedido)
+    const searchLower = searchText.toLowerCase();
+    const matchSearch = !searchText || 
+                       p.comprador?.razon_social?.toLowerCase().includes(searchLower) || 
+                       p.id.toString().toLowerCase().includes(searchLower);
+    
+    // 3. Filtro por Fecha (YYYY-MM-DD)
+    const matchFecha = !filtroFecha || p.created_at.startsWith(filtroFecha);
+
+    return matchEstado && matchSearch && matchFecha;
   });
 
   /**
@@ -231,11 +240,8 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
               style={styles.searchInput}
               placeholder="Buscar por ID o comprador..."
               placeholderTextColor="#64748b"
-              value={busquedaComprador || busquedaId}
-              onChangeText={(text) => {
-                setBusquedaComprador(text);
-                setBusquedaId(text);
-              }}
+              value={searchText}
+              onChangeText={setSearchText}
             />
           </View>
           <TouchableOpacity 
@@ -263,7 +269,27 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
             </ScrollView>
 
             <View style={{ marginTop: 20 }}>
-              <Text style={styles.filterLabel}>Orden Chronológico:</Text>
+              <Text style={styles.filterLabel}>Filtrar por Fecha (AAAA-MM-DD):</Text>
+              <View style={styles.searchWrapper}>
+                <Ionicons name="calendar-outline" size={18} color="#94a3b8" />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Ej: 2026-05-08"
+                  placeholderTextColor="#64748b"
+                  value={filtroFecha}
+                  onChangeText={setFiltroFecha}
+                  keyboardType="numeric"
+                />
+                {filtroFecha !== '' && (
+                  <TouchableOpacity onPress={() => setFiltroFecha('')}>
+                    <Ionicons name="close-circle" size={18} color="#ef4444" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            <View style={{ marginTop: 20 }}>
+              <Text style={styles.filterLabel}>Orden Cronológico:</Text>
               <View style={{ flexDirection: 'row' }}>
                 <TouchableOpacity 
                   style={[styles.chip, sortOrder === 'desc' && styles.chipActive]}

@@ -23,30 +23,14 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
     setLoading(true);
 
     try {
-      console.log("Iniciando Pre-vuelo de conectividad (v1.3.3)...");
-      const { data: pingData, error: pingError } = await supabase.from('Usuarios_Registrados').select('id').limit(1);
-
-      if (pingError) {
-        console.error("Fallo de Pre-vuelo (Conexión/CORS):", pingError.message);
-        throw new Error("PRE_VUELO_FALLIDO: " + pingError.message);
-      }
-      console.log("Pre-vuelo EXITOSO. Procediendo a Auth...");
+      console.log("Procediendo directamente a Auth (Bypass Pre-vuelo)...");
 
       console.log("Intentando signInWithPassword (v1.3.3)...");
 
-      // Definimos un tiempo de espera de 12 segundos para no dejar al usuario colgado
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("TIEMPO_EXCEDIDO")), 12000)
-      );
-
-      // Carrera entre la petición real y el timeout
-      const { data: authData, error: authError } = await Promise.race([
-        supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password: password.trim(),
-        }),
-        timeoutPromise
-      ]);
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
+      });
 
       console.log("Respuesta Auth recibida:", authData ? "Éxito" : "Sin Datos");
 
