@@ -48,11 +48,11 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
       if (data) {
         setCart(prev => prev.map(item => {
           const fresh = data.find(p => p.id === item.id);
-          if (!fresh) return item; // Si ya no existe, el handleFinalizarCompra fallará o lo removemos?
+          if (!fresh) return item;
 
           return {
             ...item,
-            vendedor_id: fresh.usuario_id,
+            vendedor_id: fresh.usuario_id, // Aseguramos que sea el ID numérico
             stock: fresh.stock,
             precio: fresh.precio,
             cantidad_minima: fresh.cantidad_minima
@@ -180,7 +180,7 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
         const { data: pedido, error: pedidoError } = await supabase
           .from('pedidos')
           .insert([{
-            comprador_id: userData.auth_user_id,
+            comprador_id: userData.id, // CAMBIO: Usar ID numérico en lugar de auth_user_id
             vendedor_id: vId,
             total: subtotal,
             estado: 'Pendiente'
