@@ -11,7 +11,8 @@ import {
   ScrollView,
   StatusBar,
   Alert,
-  Platform
+  Platform,
+  TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
@@ -29,6 +30,16 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
   // Estados para el detalle
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
+
+  const openModal = (item) => {
+    setPedidoSeleccionado(item);
+    setRating(0);
+    setComment('');
+    setModalVisible(true);
+  };
 
   useEffect(() => {
     fetchPedidos();
@@ -110,6 +121,35 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
   };
 
   /**
+   * Envía la calificación del pedido a Supabase
+   */
+  const submitRating = async () => {
+    if (rating === 0) {
+      const msg = 'Por favor selecciona una calificación de 1 a 5 estrellas.';
+      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Error', msg);
+      return;
+    }
+    setSubmittingRating(true);
+    try {
+      const { error } = await supabase
+        .from('pedidos')
+        .update({ calificacion: rating, comentario_calificacion: comment })
+        .eq('id', pedidoSeleccionado.id);
+      
+      if (error) throw error;
+      
+      // Actualizar estado local
+      setPedidoSeleccionado({ ...pedidoSeleccionado, calificacion: rating, comentario_calificacion: comment });
+      fetchPedidos();
+      if (Platform.OS === 'web') window.alert('Calificación enviada correctamente.');
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo enviar la calificación: ' + error.message);
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
+  /**
    * Abre la mensajería con el vendedor directamente.
    */
   const contactarVendedor = (vendedorId) => {
@@ -135,7 +175,7 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
     return (
       <TouchableOpacity 
         style={styles.pedidoCard}
-        onPress={() => { setPedidoSeleccionado(item); setModalVisible(true); }}
+        onPress={() => openModal(item)}
       >
         <View style={styles.cardHeader}>
           <Text style={styles.orderId}>PEDIDO #{item.id.toString().substring(0, 8).toUpperCase()}</Text>
@@ -258,6 +298,65 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
                     <Text style={styles.totalValueFooter}>${pedidoSeleccionado.total}</Text>
                   </View>
 
+                  {/* SECCIÓN DE CALIFICACIÓN */}
+                  {pedidoSeleccionado.estado === 'Entregado' && (
+                    <View style={styles.section}>
+                      <Text style={styles.sectionLabel}>Calificación del Pedido:</Text>
+                      {pedidoSeleccionado.calificacion ? (
+                        <View style={styles.ratingCard}>
+                          <View style={styles.starsContainer}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Ionicons 
+                                key={star} 
+                                name={star <= pedidoSeleccionado.calificacion ? "star" : "star-outline"} 
+                                size={28} 
+                                color="#fbbf24" 
+                              />
+                            ))}
+                          </View>
+                          {pedidoSeleccionado.comentario_calificacion ? (
+                            <Text style={styles.ratingComment}>"{pedidoSeleccionado.comentario_calificacion}"</Text>
+                          ) : null}
+                          <Text style={styles.ratedText}>¡Gracias por tu calificación!</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.ratingCard}>
+                          <Text style={styles.ratingPrompt}>¿Cómo calificarías este pedido?</Text>
+                          <View style={styles.starsContainer}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <TouchableOpacity key={star} onPress={() => setRating(star)}>
+                                <Ionicons 
+                                  name={star <= rating ? "star" : "star-outline"} 
+                                  size={36} 
+                                  color="#fbbf24" 
+                                />
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                          <TextInput
+                            style={styles.commentInput}
+                            placeholder="Deja un comentario (opcional)"
+                            placeholderTextColor="#64748b"
+                            value={comment}
+                            onChangeText={setComment}
+                            multiline
+                          />
+                          <TouchableOpacity 
+                            style={[styles.submitRatingBtn, submittingRating && { opacity: 0.7 }]}
+                            onPress={submitRating}
+                            disabled={submittingRating}
+                          >
+                            {submittingRating ? (
+                              <ActivityIndicator color="#ffffff" size="small" />
+                            ) : (
+                              <Text style={styles.submitRatingText}>Enviar Calificación</Text>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  )}
+
                   {pedidoSeleccionado.estado === 'Pendiente' && (
                     <TouchableOpacity 
                       style={styles.cancelarBtn}
@@ -335,4 +434,12 @@ const styles = StyleSheet.create({
   totalValueFooter: { color: '#ffffff', fontSize: 24, fontWeight: 'bold' },
   cancelarBtn: { backgroundColor: 'rgba(239, 68, 68, 0.1)', height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: '#ef4444' },
   cancelarBtnText: { color: '#ef4444', fontWeight: 'bold' },
+  ratingCard: { backgroundColor: '#1e293b', borderRadius: 16, padding: 16, alignItems: 'center' },
+  starsContainer: { flexDirection: 'row', justifyContent: 'center', marginVertical: 10, gap: 8 },
+  ratingPrompt: { color: '#ffffff', fontSize: 14, fontWeight: 'bold' },
+  ratedText: { color: '#10b981', fontSize: 12, marginTop: 10, fontWeight: 'bold' },
+  ratingComment: { color: '#cbd5e1', fontSize: 13, marginTop: 8, fontStyle: 'italic', textAlign: 'center' },
+  commentInput: { backgroundColor: '#0f172a', width: '100%', borderRadius: 12, color: '#ffffff', padding: 12, minHeight: 80, textAlignVertical: 'top', marginTop: 10, borderWidth: 1, borderColor: '#334155' },
+  submitRatingBtn: { backgroundColor: '#3b82f6', width: '100%', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 15 },
+  submitRatingText: { color: '#ffffff', fontWeight: 'bold', fontSize: 14 },
 });
