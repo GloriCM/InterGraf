@@ -23,11 +23,16 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
     setLoading(true);
 
     try {
-      console.log("Intentando signInWithPassword directo...");
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
+      console.log("Procediendo directamente a Auth (Bypass Pre-vuelo)...");
+
+      console.log("Intentando signInWithPassword...");
+
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
+
+      console.log("Respuesta Auth recibida:", authData ? "Éxito" : "Sin Datos");
 
       if (authError) {
         setLoading(false);
