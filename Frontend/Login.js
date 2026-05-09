@@ -48,8 +48,11 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
       }
 
       console.log("Login exitoso en Auth. Esperando redirección de App.js...");
-      // No llamamos a onLoginSuccess aquí porque App.js tiene un listener onAuthStateChange
-      // que detectará el evento SIGNED_IN y hará el cambio de pantalla automáticamente.
+      // En caso de que App.js falle al encontrar el perfil y no nos desmonte,
+      // quitamos el spinner después de un tiempo para no dejar bloqueada la pantalla.
+      setTimeout(() => {
+        setLoading(false);
+      }, 5000);
 
     } catch (err) {
       setLoading(false);
