@@ -153,7 +153,7 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
             </View>
 
             {/* Etiqueta de versión para control de actualizaciones */}
-            <Text style={styles.versionTag}>v1.5.6 - InterGea (Modern Header)</Text>
+            <Text style={styles.versionTag}>v1.6.0 - InterGea (Modern Header)</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
