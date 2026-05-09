@@ -105,15 +105,41 @@ export default function App() {
 
       if (event === 'SIGNED_IN') {
         if (session?.user) {
-          const { data: userData, error } = await supabase
-            .from('Usuarios_Registrados')
-            .select('*')
-            .eq('auth_user_id', session.user.id)
-            .maybeSingle();
+          console.log("Evento SIGNED_IN recibido. Consultando Usuarios_Registrados para:", session.user.id);
+          try {
+            // Utilizamos Promise.race para evitar un hang infinito (timeout de 10 segundos)
+            const queryPromise = supabase
+              .from('Usuarios_Registrados')
+              .select('*')
+              .eq('auth_user_id', session.user.id)
+              .maybeSingle();
 
-          if (!error && userData) {
-            setUserData(userData);
-            setCurrentScreen('dashboard');
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error("Timeout al consultar Usuarios_Registrados")), 10000)
+            );
+
+            const { data: userData, error } = await Promise.race([queryPromise, timeoutPromise]);
+
+            if (error) {
+              console.error("Error al consultar Usuarios_Registrados:", error);
+              Alert.alert("Error de Perfil", "Hubo un error al cargar tu perfil. Contacta soporte.");
+              supabase.auth.signOut();
+            } else if (!userData) {
+              console.warn("No se encontró el perfil en Usuarios_Registrados para auth_user_id:", session.user.id);
+              Alert.alert(
+                "Perfil no encontrado", 
+                "Tu cuenta de correo existe, pero no encontramos los datos de tu empresa. Por favor regístrate nuevamente con otro correo o contacta soporte."
+              );
+              supabase.auth.signOut();
+            } else {
+              console.log("Perfil de usuario cargado con éxito. Navegando al dashboard.");
+              setUserData(userData);
+              setCurrentScreen('dashboard');
+            }
+          } catch (err) {
+            console.error("Excepción al consultar la base de datos:", err);
+            Alert.alert("Error Inesperado", "Ocurrió un error al cargar la información: " + err.message);
+            supabase.auth.signOut();
           }
         }
       }
@@ -207,7 +233,7 @@ export default function App() {
               <TouchableOpacity style={styles.logoutTextButton} onPress={handleLogout}>
                 <Text style={styles.logoutText}>Cerrar Sesión</Text>
               </TouchableOpacity>
-              <Text style={styles.versionTag}>v1.5.6 - InterGea (Modern Header)</Text>
+              <Text style={styles.versionTag}>v1.6.0 - InterGea (Modern Header)</Text>
             </View>
           </View>
         </SafeAreaView>
