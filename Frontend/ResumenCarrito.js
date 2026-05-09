@@ -180,7 +180,7 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
         const { data: pedido, error: pedidoError } = await supabase
           .from('pedidos')
           .insert([{
-            comprador_id: userData.id, // CAMBIO: Usar ID numérico en lugar de auth_user_id
+            comprador_id: userData.auth_user_id, // Usar UUID para consistencia con RLS y resto de la app
             vendedor_id: vId,
             total: subtotal,
             estado: 'Pendiente'
@@ -216,8 +216,9 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
       
       onNavigate('pedidos_comprador');
     } catch (error) {
+      console.error("ERROR DETALLADO EN TRANSACCIÓN:", JSON.stringify(error, null, 2));
       setSimulandoPago(false);
-      Alert.alert("Error en la transacción", error.message);
+      Alert.alert("Error en la transacción", error.message || "Error desconocido");
     } finally {
       setProcesando(false);
     }
