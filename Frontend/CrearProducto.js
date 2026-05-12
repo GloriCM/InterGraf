@@ -19,8 +19,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from './supabase';
+import Header from './Header';
 
-export default function CrearProducto({ onBack, onNavigate, producto, userData }) {
+
+export default function CrearProducto({ onBack, onNavigate, producto, userData, onToggleMenu }) {
   // Determinar si estamos en modo edición
   const esEdicion = !!producto;
   // --- Estados del Formulario ---
@@ -305,45 +307,9 @@ export default function CrearProducto({ onBack, onNavigate, producto, userData }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* HEADER DE NAVEGACIÓN */}
-      <View style={styles.header}>
-        <View style={styles.headerIcons}>
-          {/* Logo Pequeño */}
-          <View style={{ alignItems: 'center', marginRight: 15 }}>
-            <Image 
-              source={require('./assets/LOGO-Sin-Letras.png')} 
-              style={{ height: 25, width: 25, marginBottom: 2 }} 
-              resizeMode="contain" 
-            />
-            <Text style={{ fontSize: 6, color: '#0ea5e9', fontWeight: 'bold' }}>INTERGEA</Text>
-          </View>
+      {/* HEADER PRINCIPAL INTERGEA */}
+      <Header onMenuPress={onToggleMenu} />
 
-          <TouchableOpacity onPress={() => onNavigate ? onNavigate('dashboard') : onBack()}>
-            <Ionicons name="home" size={22} color="#f8fafc" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-          
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
-            <Ionicons name="layers" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('inventario')}>
-            <Ionicons name="cube-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('perfil')}>
-            <Ionicons name="person-circle-outline" size={30} color="#cbd5e1" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('mensajeria')}>
-            <Ionicons name="chatbubble-outline" size={24} color="#64748b" style={{ marginHorizontal: 8 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => onNavigate && onNavigate('login')}>
-            <Ionicons name="log-out-outline" size={26} color="#f8fafc" style={{ marginLeft: 8 }} />
-          </TouchableOpacity>
-        </View>
-      </View>
 
       <View style={styles.titleWrapper}>
         <TouchableOpacity 
@@ -520,21 +486,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#020617',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 20,
-    paddingBottom: 20,
-  },
-  headerIcons: {
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)'
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    backgroundColor: '#0f172a',
+    borderBottomWidth: 1,
+    borderColor: '#1e293b',
   },
   titleWrapper: {
     flexDirection: 'row',

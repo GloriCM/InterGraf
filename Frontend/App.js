@@ -309,6 +309,7 @@ export default function App() {
             setCurrentScreen(screen);
           }}
           userData={userData}
+          onToggleMenu={toggleMenu}
         />
       );
     }
@@ -323,6 +324,7 @@ export default function App() {
             setCurrentScreen(screen);
           }}
           userData={userData}
+          onToggleMenu={toggleMenu}
         />
       );
     }
