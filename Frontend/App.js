@@ -18,6 +18,7 @@ import PedidosComprador from './PedidosComprador';
 import { Ionicons } from '@expo/vector-icons';
 
 import MenuLateral from './MenuLateral';
+import BottomTab from './BottomTab';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('login');
@@ -179,6 +180,11 @@ export default function App() {
     setCurrentScreen('login');
   };
 
+  const standardNavigate = (screen, params) => {
+    if (params) setSelectedProduct(params);
+    setCurrentScreen(screen);
+  };
+
   // --- NAVEGACIÓN PRINCIPAL ---
 
   const renderContent = () => {
@@ -335,17 +341,13 @@ export default function App() {
       );
     }
 
-    const standardNavigate = (screen, params) => {
-      if (params) setSelectedProduct(params);
-      setCurrentScreen(screen);
-    };
 
     // Default simple render for and common screens
-    if (currentScreen === 'perfil') return <Perfil userData={userData} onUpdate={setUserData} onBack={() => setCurrentScreen('dashboard')} onNavigate={standardNavigate} onToggleMenu={toggleMenu} />;
+    if (currentScreen === 'perfil') return <Perfil userData={userData} onUpdate={setUserData} onBack={() => setCurrentScreen(userData?.rol === 'vendedor' ? 'inventario' : 'comprador')} onNavigate={standardNavigate} onToggleMenu={toggleMenu} />;
     if (currentScreen === 'mensajeria') return <Mensajeria onBack={() => setCurrentScreen('dashboard')} onNavigate={standardNavigate} userData={userData} initialRecipientId={initialRecipientId} initialProductContext={initialProductContext} initialMessageText={initialMessageText} />;
     if (currentScreen === 'resumen_carrito') return <ResumenCarrito userData={userData} cart={cart} setCart={setCart} onBack={() => setCurrentScreen('comprador')} onNavigate={standardNavigate} />;
-    if (currentScreen === 'pedidos_comprador') return <PedidosComprador userData={userData} onBack={() => setCurrentScreen('dashboard')} onNavigate={standardNavigate} onToggleMenu={toggleMenu} />;
-    if (currentScreen === 'pedidos_vendedor') return <PedidosVendedor onBack={() => setCurrentScreen('dashboard')} onNavigate={standardNavigate} userData={userData} onToggleMenu={toggleMenu} />;
+    if (currentScreen === 'pedidos_comprador') return <PedidosComprador userData={userData} onBack={() => setCurrentScreen('comprador')} onNavigate={standardNavigate} onToggleMenu={toggleMenu} />;
+    if (currentScreen === 'pedidos_vendedor') return <PedidosVendedor onBack={() => setCurrentScreen('inventario')} onNavigate={standardNavigate} userData={userData} onToggleMenu={toggleMenu} />;
 
     return null;
   };
@@ -363,6 +365,11 @@ export default function App() {
         userData={userData}
         onLogout={handleLogout}
         cartCount={cart.length}
+      />
+      <BottomTab 
+        currentScreen={currentScreen} 
+        onNavigate={standardNavigate} 
+        userData={userData} 
       />
     </View>
   );

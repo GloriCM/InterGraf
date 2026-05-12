@@ -256,7 +256,9 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
       {/* HEADER DE LA SECCIÓN (MIS PEDIDOS) */}
       <View style={styles.header}>
         {/* Espaciador invisible para mantener el título centrado */}
-        <View style={{ width: 34 }} />
+        <TouchableOpacity onPress={() => onNavigate('comprador')} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Mis Pedidos</Text>
         <TouchableOpacity onPress={fetchPedidos} style={styles.refreshBtn}>
           <Ionicons name="refresh-outline" size={22} color="#ffffff" />
@@ -455,7 +457,7 @@ const styles = StyleSheet.create({
   backBtn: { padding: 5 },
   refreshBtn: { padding: 5 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { padding: 20, paddingBottom: 40 },
+  listContent: { padding: 20, paddingBottom: 120 },
   pedidoCard: {
     backgroundColor: '#0f172a',
     borderRadius: 20,
