@@ -121,6 +121,49 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
   };
 
   /**
+   * Simula la respuesta de Wompi actualizando el estado del pedido.
+   */
+  const simularPago = async (item, nuevoEstado) => {
+    try {
+      const { error } = await supabase
+        .from('pedidos')
+        .update({ estado: nuevoEstado })
+        .eq('id', item.id);
+
+      if (error) throw error;
+
+      // Devolver stock si es rechazado/cancelado
+      if (nuevoEstado === 'Cancelado') {
+         const { data: detalles } = await supabase
+            .from('detalle_pedidos')
+            .select('producto_id, cantidad')
+            .eq('pedido_id', item.id);
+            
+         if (detalles) {
+            for (const det of detalles) {
+               const { data: prod } = await supabase.from('productos').select('stock').eq('id', det.producto_id).single();
+               if (prod) {
+                 await supabase.from('productos').update({ stock: (prod.stock || 0) + det.cantidad }).eq('id', det.producto_id);
+               }
+            }
+         }
+      }
+
+      setPedidoSeleccionado({ ...pedidoSeleccionado, estado: nuevoEstado });
+      fetchPedidos();
+      
+      const msg = nuevoEstado === 'En preparación' 
+        ? 'Pago aprobado. El pedido ahora está En Preparación.' 
+        : 'Pago rechazado. El pedido ha sido cancelado y el stock devuelto.';
+        
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Simulador Wompi', msg);
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo simular el pago: ' + error.message);
+    }
+  };
+
+  /**
    * Envía la calificación del pedido a Supabase
    */
   const submitRating = async () => {
@@ -358,12 +401,33 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
                   )}
 
                   {pedidoSeleccionado.estado === 'Pendiente' && (
-                    <TouchableOpacity 
-                      style={styles.cancelarBtn}
-                      onPress={() => cancelarPedido(pedidoSeleccionado)}
-                    >
-                      <Text style={styles.cancelarBtnText}>Cancelar Pedido</Text>
-                    </TouchableOpacity>
+                    <View style={styles.simuladorContainer}>
+                      <Text style={styles.simuladorTitle}>Simulador de Pago Wompi</Text>
+                      <View style={styles.simuladorActions}>
+                        <TouchableOpacity 
+                          style={[styles.simularBtn, { backgroundColor: 'rgba(16, 185, 129, 0.1)', borderColor: '#10b981' }]}
+                          onPress={() => simularPago(pedidoSeleccionado, 'En preparación')}
+                        >
+                          <Ionicons name="checkmark-circle-outline" size={20} color="#10b981" />
+                          <Text style={[styles.simularBtnText, { color: '#10b981' }]}>Aprobar</Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                          style={[styles.simularBtn, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: '#ef4444' }]}
+                          onPress={() => simularPago(pedidoSeleccionado, 'Cancelado')}
+                        >
+                          <Ionicons name="close-circle-outline" size={20} color="#ef4444" />
+                          <Text style={[styles.simularBtnText, { color: '#ef4444' }]}>Rechazar</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      <TouchableOpacity 
+                        style={styles.cancelarBtn}
+                        onPress={() => cancelarPedido(pedidoSeleccionado)}
+                      >
+                        <Text style={styles.cancelarBtnText}>Cancelar Pedido Manualmente</Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
                 </ScrollView>
               </>
@@ -442,4 +506,9 @@ const styles = StyleSheet.create({
   commentInput: { backgroundColor: '#0f172a', width: '100%', borderRadius: 12, color: '#ffffff', padding: 12, minHeight: 80, textAlignVertical: 'top', marginTop: 10, borderWidth: 1, borderColor: '#334155' },
   submitRatingBtn: { backgroundColor: '#3b82f6', width: '100%', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 15 },
   submitRatingText: { color: '#ffffff', fontWeight: 'bold', fontSize: 14 },
+  simuladorContainer: { marginTop: 10, padding: 16, backgroundColor: '#1e293b', borderRadius: 16, borderWidth: 1, borderColor: '#334155', borderStyle: 'dashed' },
+  simuladorTitle: { color: '#94a3b8', fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center', marginBottom: 12, letterSpacing: 1 },
+  simuladorActions: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  simularBtn: { flex: 1, flexDirection: 'row', height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, gap: 6 },
+  simularBtnText: { fontWeight: 'bold', fontSize: 13 },
 });

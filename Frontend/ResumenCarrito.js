@@ -12,7 +12,8 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
-  TextInput
+  TextInput,
+  Linking
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabase';
@@ -24,7 +25,8 @@ import Header from './Header';
  */
 export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavigate }) {
   const [procesando, setProcesando] = useState(false);
-  const [simulandoPago, setSimulandoPago] = useState(false);
+  const [paymentModalState, setPaymentModalState] = useState(null); // null | 'generando' | 'esperando'
+  const [pedidosCreados, setPedidosCreados] = useState([]);
 
   useEffect(() => {
     revalidarCarrito();
@@ -140,19 +142,16 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
   };
 
   /**
-   * Finaliza la compra y crea los registros en la tabla de pedidos.
+   * Finaliza la compra, registra los pedidos y redirige a Wompi para el pago.
    */
   const handleFinalizarCompra = async () => {
     if (cart.length === 0) return;
     
-    setSimulandoPago(true);
-    
-    // 1. Simulación de Pago (2 segundos)
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
+    setPaymentModalState('generando'); // Mostrar modal de carga
     setProcesando(true);
+    
     try {
-      // 2. Descuento Real del Stock en la BD
+      // 1. Descuento Real del Stock en la BD
       for (const item of cart) {
         const { data: prod, error: fetchErr } = await supabase
           .from('productos')
@@ -170,8 +169,9 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
         if (stockErr) throw stockErr;
       }
 
-      // 3. Creación de Pedidos (Agrupados por vendedor)
+      // 2. Creación de Pedidos (Agrupados por vendedor)
       const vendedoresIds = [...new Set(cart.map(item => item.Usuarios_Registrados?.auth_user_id || item.vendedor_id))];
+      const creados = [];
 
       for (const vId of vendedoresIds) {
         if (!vId) continue; // Prevenir errores si no hay vendedor identificado
@@ -185,12 +185,13 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
             comprador_id: userData.auth_user_id, // Usar UUID para consistencia con RLS y resto de la app
             vendedor_id: vId,
             total: subtotal,
-            estado: 'Pendiente'
+            estado: 'Pendiente' // El pedido queda Pendiente esperando confirmación de pago
           }])
           .select()
           .single();
 
         if (pedidoError) throw pedidoError;
+        creados.push(pedido.id);
 
         const detalles = itemsVendedor.map(it => ({
           pedido_id: pedido.id,
@@ -206,21 +207,79 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
         if (detallesError) throw detallesError;
       }
 
-      setCart([]);
-      setSimulandoPago(false);
+      setPedidosCreados(creados);
+
+      // 3. Generación del Link de Pago Wompi
+      const WOMPI_PUBLIC_KEY = 'pub_test_CDHkdnLJzbKWBGMmOyxNstSpHUg2IA6C';
+      const amountInCents = total * 100; // Wompi requiere el monto en centavos
+      const reference = `PEDIDO-${Date.now()}`; // Referencia única generada dinámicamente
       
-      const successMsg = "¡Pago realizado con éxito! Tu pedido ha sido procesado.";
+      const wompiUrl = `https://checkout.wompi.co/p/?public-key=${WOMPI_PUBLIC_KEY}&currency=COP&amount-in-cents=${amountInCents}&reference=${reference}`;
+      
+      // 4. Abrir la pasarela de pagos Wompi
       if (Platform.OS === 'web') {
-        window.alert(successMsg);
+        window.open(wompiUrl, '_blank');
       } else {
-        Alert.alert("Éxito", successMsg);
+        await Linking.openURL(wompiUrl);
       }
       
-      onNavigate('pedidos_comprador');
+      // Cambiar estado a esperando, ya no redirigir automáticamente
+      setPaymentModalState('esperando');
+      
     } catch (error) {
       console.error("ERROR DETALLADO EN TRANSACCIÓN:", JSON.stringify(error, null, 2));
-      setSimulandoPago(false);
+      setPaymentModalState(null);
       Alert.alert("Error en la transacción", error.message || "Error desconocido");
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const handleConfirmarPago = async () => {
+    try {
+      setProcesando(true);
+      setPaymentModalState(null);
+      
+      // Marcar los pedidos como pagados / En preparación
+      for (const pedidoId of pedidosCreados) {
+        await supabase.from('pedidos').update({ estado: 'En preparación' }).eq('id', pedidoId);
+      }
+      
+      setCart([]);
+      onNavigate('pedidos_comprador');
+    } catch (err) {
+      console.error('Error al confirmar pago:', err);
+      Alert.alert('Error', 'Hubo un error al guardar la confirmación del pago.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const handleCancelarPago = async () => {
+    try {
+      setProcesando(true);
+      setPaymentModalState(null); // Ocultar el modal mientras cancela
+      
+      for (const pedidoId of pedidosCreados) {
+        await supabase.from('pedidos').update({ estado: 'Cancelado' }).eq('id', pedidoId);
+        
+        // Devolver el stock
+        const { data: detalles } = await supabase.from('detalle_pedidos').select('producto_id, cantidad').eq('pedido_id', pedidoId);
+        if (detalles) {
+          for (const det of detalles) {
+            const { data: prod } = await supabase.from('productos').select('stock').eq('id', det.producto_id).single();
+            if (prod) {
+              await supabase.from('productos').update({ stock: (prod.stock || 0) + det.cantidad }).eq('id', det.producto_id);
+            }
+          }
+        }
+      }
+      const msg = 'Tu compra ha sido cancelada exitosamente.';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Compra Cancelada', msg);
+    } catch (err) {
+      console.error('Error al cancelar:', err);
+      Alert.alert('Error', 'Hubo un error al cancelar la compra.');
     } finally {
       setProcesando(false);
     }
@@ -275,7 +334,11 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
       <Header showBack={true} onBack={onBack} onMenuPress={() => onNavigate('dashboard')} />
 
       <View style={styles.content}>
-        <PaymentModal visible={simulandoPago} />
+        <PaymentModal 
+          state={paymentModalState} 
+          onConfirmar={handleConfirmarPago} 
+          onCancelar={handleCancelarPago} 
+        />
         {cart.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="cart-outline" size={80} color="#1e293b" />
@@ -322,21 +385,41 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
 }
 
 /**
- * MODAL DE SIMULACIÓN DE PAGO
+ * MODAL DE GENERACIÓN DE PAGO WOMPI
  */
-function PaymentModal({ visible }) {
+function PaymentModal({ state, onConfirmar, onCancelar }) {
+    if (!state) return null;
+
     return (
-        <Modal visible={visible} transparent animationType="fade">
+        <Modal visible={true} transparent animationType="fade">
             <View style={styles.modalOverlay}>
                 <View style={styles.paymentCard}>
-                    <ActivityIndicator size="large" color="#0ea5e9" />
-                    <Text style={styles.paymentTitle}>Procesando Pago Seguro</Text>
-                    <Text style={styles.paymentSub}>Cifrando transacción y verificando stock...</Text>
-                    
-                    <View style={styles.secureBadge}>
-                        <Ionicons name="shield-checkmark" size={16} color="#10b981" />
-                        <Text style={styles.secureText}>Pago Protegido SSL</Text>
-                    </View>
+                    {state === 'generando' ? (
+                        <>
+                            <ActivityIndicator size="large" color="#0ea5e9" />
+                            <Text style={styles.paymentTitle}>Conectando con Wompi</Text>
+                            <Text style={styles.paymentSub}>Generando link de pago seguro y verificando stock...</Text>
+                            
+                            <View style={styles.secureBadge}>
+                                <Ionicons name="shield-checkmark" size={16} color="#10b981" />
+                                <Text style={styles.secureText}>Pago Protegido SSL</Text>
+                            </View>
+                        </>
+                    ) : (
+                        <>
+                            <Ionicons name="time-outline" size={48} color="#0ea5e9" />
+                            <Text style={styles.paymentTitle}>Esperando tu pago</Text>
+                            <Text style={styles.paymentSub}>Por favor completa el pago en la ventana de Wompi que se acaba de abrir.</Text>
+                            
+                            <TouchableOpacity style={styles.btnConfirmar} onPress={onConfirmar}>
+                                <Text style={styles.btnConfirmarText}>Ya completé el pago</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.btnCancelar} onPress={onCancelar}>
+                                <Text style={styles.btnCancelarText}>Cancelar compra</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
                 </View>
             </View>
         </Modal>
@@ -540,5 +623,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  btnConfirmar: {
+    backgroundColor: '#0ea5e9',
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  btnConfirmarText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  btnCancelar: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  btnCancelarText: {
+    color: '#ef4444',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

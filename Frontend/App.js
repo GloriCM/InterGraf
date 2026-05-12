@@ -40,6 +40,9 @@ export default function App() {
   // ESTADO DEL CARRITO COMPARTIDO (v1.3.0)
   const [cart, setCart] = useState([]);
 
+  const userDataRef = React.useRef(null);
+  useEffect(() => { userDataRef.current = userData; }, [userData]);
+
   useEffect(() => {
     // 1. Listener de URLs para Deep Linking (Expo Linking)
     const handleDeepLink = async (url) => {
@@ -103,9 +106,14 @@ export default function App() {
         }
       }
 
-      if (event === 'SIGNED_IN') {
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
         if (session?.user) {
-          console.log("Evento SIGNED_IN recibido. Consultando Usuarios_Registrados para:", session.user.id);
+          // Si ya tenemos la data en memoria, no hacer fetch otra vez (evita timeouts en refrescos de token)
+          if (userDataRef.current && userDataRef.current.auth_user_id === session.user.id) {
+             return;
+          }
+
+          console.log("Evento Auth recibido. Consultando Usuarios_Registrados para:", session.user.id);
           try {
             // Utilizamos Promise.race para evitar un hang infinito (timeout de 10 segundos)
             const queryPromise = supabase
@@ -118,28 +126,34 @@ export default function App() {
               setTimeout(() => reject(new Error("Timeout al consultar Usuarios_Registrados")), 10000)
             );
 
-            const { data: userData, error } = await Promise.race([queryPromise, timeoutPromise]);
+            const { data: dbUser, error } = await Promise.race([queryPromise, timeoutPromise]);
 
             if (error) {
               console.error("Error al consultar Usuarios_Registrados:", error);
-              Alert.alert("Error de Perfil", "Hubo un error al cargar tu perfil. Contacta soporte.");
-              supabase.auth.signOut();
-            } else if (!userData) {
+              // Solo avisar si no estamos ya logueados
+              if (!userDataRef.current) {
+                Alert.alert("Error de Perfil", "Hubo un error al cargar tu perfil. Contacta soporte.");
+              }
+            } else if (!dbUser) {
               console.warn("No se encontró el perfil en Usuarios_Registrados para auth_user_id:", session.user.id);
-              Alert.alert(
-                "Perfil no encontrado", 
-                "Tu cuenta de correo existe, pero no encontramos los datos de tu empresa. Por favor regístrate nuevamente con otro correo o contacta soporte."
-              );
-              supabase.auth.signOut();
+              if (!userDataRef.current) {
+                Alert.alert(
+                  "Perfil no encontrado", 
+                  "Tu cuenta de correo existe, pero no encontramos los datos de tu empresa. Por favor regístrate nuevamente con otro correo o contacta soporte."
+                );
+                supabase.auth.signOut();
+              }
             } else {
               console.log("Perfil de usuario cargado con éxito. Navegando al dashboard.");
-              setUserData(userData);
+              setUserData(dbUser);
               setCurrentScreen('dashboard');
             }
           } catch (err) {
             console.error("Excepción al consultar la base de datos:", err);
-            Alert.alert("Error Inesperado", "Ocurrió un error al cargar la información: " + err.message);
-            supabase.auth.signOut();
+            if (!userDataRef.current) {
+              Alert.alert("Error de Conexión", "La base de datos está tardando demasiado en responder.");
+            }
+            // NO HACER signOut() aquí para no expulsar al usuario por un simple timeout de red
           }
         }
       }
