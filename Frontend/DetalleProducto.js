@@ -305,7 +305,7 @@ export default function DetalleProducto({ userData, producto, onBack, onNavigate
             </View>
           </View>
 
-          <View style={{ height: 100 }} />
+
         </View>
       </ScrollView>
 
@@ -528,15 +528,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    paddingBottom: 24,
     backgroundColor: 'rgba(2, 6, 23, 0.9)',
     borderTopWidth: 1,
     borderColor: '#1e293b',
+    marginBottom: 100,
   },
   primaryBtn: {
     backgroundColor: '#3b82f6',

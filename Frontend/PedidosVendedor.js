@@ -37,6 +37,7 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
   // Estado para el modal de detalle
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [motivoCancelacion, setMotivoCancelacion] = useState('');
 
   // Opciones de estado para el filtro y para actualización (según RF-14)
   const estadosPosibles = ['Todos', 'Pendiente', 'En preparación', 'Enviado', 'Entregado', 'Cancelado'];
@@ -152,27 +153,106 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
 
   /**
    * Cambia el estado del pedido en la base de datos (RF-14).
+   * Si el estado es 'Cancelado', aplica reglas de RF-029.
    */
   const cambiarEstado = async (id, nuevoEstado) => {
     try {
+      const updateData = { estado: nuevoEstado };
+      
+      if (nuevoEstado === 'Cancelado') {
+        // RF-029: Solo se permite cancelar si el estado actual es 'Pendiente'
+        if (pedidoSeleccionado?.estado !== 'Pendiente') {
+          const msg = `No se puede cancelar un pedido que ya está en estado: ${pedidoSeleccionado?.estado}`;
+          Platform.OS === 'web' ? window.alert(msg) : Alert.alert("Acción no permitida", msg);
+          return;
+        }
+
+        if (!motivoCancelacion.trim()) {
+          const msg = "Por favor, escribe un motivo para la cancelación del pedido.";
+          Platform.OS === 'web' ? window.alert(msg) : Alert.alert("Motivo requerido", msg);
+          return;
+        }
+        updateData.motivo_cancelacion = motivoCancelacion.trim();
+      }
+
       const { error } = await supabase
         .from('pedidos')
-        .update({ estado: nuevoEstado })
+        .update(updateData)
         .eq('id', id);
 
       if (error) throw error;
       
+      // --- RESTAURACIÓN DE STOCK (RF-029) ---
+      // Si el pedido se cancela, devolvemos el stock al inventario
+      if (nuevoEstado === 'Cancelado' && pedidoSeleccionado?.estado !== 'Cancelado') {
+        console.log("DEBUG: Vendedor cancelando. Restaurando stock...");
+        if (pedidoSeleccionado.detalles && pedidoSeleccionado.detalles.length > 0) {
+          for (const det of pedidoSeleccionado.detalles) {
+            const { data: prodData } = await supabase
+              .from('productos')
+              .select('stock')
+              .eq('id', det.producto_id)
+              .single();
+            
+            if (prodData) {
+              const nuevoStock = (prodData.stock || 0) + det.cantidad;
+              await supabase
+                .from('productos')
+                .update({ stock: nuevoStock })
+                .eq('id', det.producto_id);
+              console.log(`DEBUG: Stock restaurado para ${det.producto_id} a ${nuevoStock}`);
+            }
+          }
+        }
+      }
+      // --------------------------------------
+
       // Actualizar localmente
-      setPedidos(pedidos.map(p => p.id === id ? { ...p, estado: nuevoEstado } : p));
+      setPedidos(pedidos.map(p => p.id === id ? { ...p, ...updateData } : p));
       if (pedidoSeleccionado?.id === id) {
-        setPedidoSeleccionado({ ...pedidoSeleccionado, estado: nuevoEstado });
+        setPedidoSeleccionado({ ...pedidoSeleccionado, ...updateData });
       }
       
       if (Platform.OS === 'web') {
         window.alert(`Estado del pedido #${id} actualizado a ${nuevoEstado}`);
       }
     } catch (error) {
-      Alert.alert("Error", "No se pudo actualizar el estado: " + error.message);
+      console.error("DEBUG: Error al cambiar estado:", error);
+
+      // Fallback para columna faltante
+      if (nuevoEstado === 'Cancelado' && error.message && (error.message.includes("column") || error.message.includes("motivo_cancelacion"))) {
+        console.log("DEBUG: Reintentando sin motivo_cancelacion...");
+        try {
+          const { error: retryErr } = await supabase
+            .from('pedidos')
+            .update({ estado: nuevoEstado })
+            .eq('id', id);
+          
+          if (retryErr) throw retryErr;
+
+          // Restaurar stock en fallback
+          if (pedidoSeleccionado?.detalles) {
+            for (const det of pedidoSeleccionado.detalles) {
+              const { data: prodData } = await supabase.from('productos').select('stock').eq('id', det.producto_id).single();
+              if (prodData) {
+                await supabase.from('productos').update({ stock: (prodData.stock || 0) + det.cantidad }).eq('id', det.producto_id);
+              }
+            }
+          }
+
+          setPedidos(pedidos.map(p => p.id === id ? { ...p, estado: nuevoEstado } : p));
+          if (pedidoSeleccionado?.id === id) {
+            setPedidoSeleccionado({ ...pedidoSeleccionado, estado: nuevoEstado });
+          }
+          if (Platform.OS === 'web') window.alert(`Estado actualizado a ${nuevoEstado} (sin motivo)`);
+          return;
+        } catch (err2) {
+          console.error("DEBUG: Falló también el reintento:", err2);
+        }
+      }
+
+      const msg = "No se pudo actualizar el estado: " + error.message;
+      Platform.OS === 'web' ? window.alert(msg) : Alert.alert("Error", msg);
     }
   };
 
@@ -184,6 +264,7 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
         style={styles.pedidoCard}
         onPress={() => {
           setPedidoSeleccionado(item);
+          setMotivoCancelacion('');
           setModalVisible(true);
         }}
       >
@@ -369,16 +450,52 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
                   <View style={styles.detailSection}>
                     <Text style={styles.detailLabel}>Estado Actual:</Text>
                     <View style={styles.statusPicker}>
-                      {estadosPosibles.filter(e => e !== 'Todos').map(est => (
-                        <TouchableOpacity 
-                          key={est}
-                          style={[styles.statusOption, pedidoSeleccionado.estado === est && styles.statusOptionActive]}
-                          onPress={() => cambiarEstado(pedidoSeleccionado.id, est)}
-                        >
-                          <Text style={[styles.statusOptionText, pedidoSeleccionado.estado === est && styles.statusOptionTextActive]}>{est}</Text>
-                        </TouchableOpacity>
-                      ))}
+                      {estadosPosibles.filter(e => e !== 'Todos').map(est => {
+                        const isCancelado = est === 'Cancelado';
+                        const canCancel = pedidoSeleccionado.estado === 'Pendiente';
+                        const disabled = isCancelado && !canCancel && pedidoSeleccionado.estado !== 'Cancelado';
+                        
+                        return (
+                          <TouchableOpacity 
+                            key={est}
+                            style={[
+                              styles.statusOption, 
+                              pedidoSeleccionado.estado === est && styles.statusOptionActive,
+                              disabled && { opacity: 0.3 }
+                            ]}
+                            onPress={() => cambiarEstado(pedidoSeleccionado.id, est)}
+                            disabled={disabled}
+                          >
+                            <Text style={[styles.statusOptionText, pedidoSeleccionado.estado === est && styles.statusOptionTextActive]}>{est}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
+                    
+                    {/* RF-029: Entrada de motivo si el vendedor desea cancelar */}
+                    {pedidoSeleccionado.estado !== 'Cancelado' && (
+                      <View style={{ marginTop: 15 }}>
+                        <Text style={styles.detailLabel}>Motivo de Cancelación (Si aplica):</Text>
+                        <TextInput
+                          style={styles.reasonInput}
+                          placeholder="Escribe el motivo antes de seleccionar 'Cancelado'"
+                          placeholderTextColor="#64748b"
+                          value={motivoCancelacion}
+                          onChangeText={setMotivoCancelacion}
+                          multiline
+                        />
+                      </View>
+                    )}
+
+                    {/* RF-029: Mostrar motivo solo si está cancelado */}
+                    {pedidoSeleccionado.estado === 'Cancelado' && pedidoSeleccionado.motivo_cancelacion && (
+                      <View style={styles.motivoContainer}>
+                        <Ionicons name="information-circle-outline" size={16} color="#ef4444" />
+                        <Text style={styles.motivoText}>
+                          Motivo: {pedidoSeleccionado.motivo_cancelacion}
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
                   <View style={styles.detailSection}>
@@ -698,5 +815,34 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 22,
     fontWeight: 'bold',
+  },
+  reasonInput: {
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    color: '#ffffff',
+    padding: 12,
+    minHeight: 80,
+    textAlignVertical: 'top',
+    marginTop: 5,
+    borderWidth: 1,
+    borderColor: '#334155',
+    fontSize: 14,
+  },
+  motivoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+  },
+  motivoText: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontStyle: 'italic',
+    marginLeft: 8,
+    flex: 1,
   },
 });
