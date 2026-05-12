@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   scrollContent: {
-    paddingBottom: 60,
+    paddingBottom: 120,
     paddingTop: 15,
   },
   resultsHeader: {

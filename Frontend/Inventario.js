@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     alignItems: 'center',
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   cardItem: {
     width: '90%',

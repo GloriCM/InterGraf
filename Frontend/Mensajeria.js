@@ -583,7 +583,13 @@ export default function Mensajeria({ onBack, onNavigate, userData, initialRecipi
       {/* HEADER GLOBAL */}
       <Header onMenuPress={() => onNavigate('dashboard')} />
 
-      <Text style={styles.mainTitle}>Mensajes</Text>
+      <View style={styles.sectionHeader}>
+        <TouchableOpacity onPress={() => onNavigate(userData?.rol === 'vendedor' ? 'inventario' : 'comprador')} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
+        </TouchableOpacity>
+        <Text style={styles.mainTitle}>Mensajes</Text>
+        <View style={{ width: 34 }} />
+      </View>
 
       {/* CONTENEDOR PRINCIPAL BASADO EN LA IMAGEN */}
       <View style={styles.cardContainer}>
@@ -863,7 +869,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
+    flex: 1,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginTop: 10,
     marginBottom: 20,
+  },
+  backBtn: {
+    padding: 5,
   },
   cardContainer: {
     flex: 1,

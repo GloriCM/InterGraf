@@ -212,7 +212,14 @@ export default function Perfil({ userData, onUpdate, onBack, onNavigate, onToggl
       {/* HEADER DE NAVEGACIÓN (MENÚ LATERAL) */}
       <Header onMenuPress={onToggleMenu} />
 
-      <Text style={styles.title}>Editar Perfil</Text>
+      {/* HEADER DE SECCIÓN CON BOTÓN VOLVER */}
+      <View style={styles.sectionHeader}>
+        <TouchableOpacity onPress={() => onNavigate(userData?.rol === 'vendedor' ? 'inventario' : 'comprador')} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Editar Perfil</Text>
+        <View style={{ width: 34 }} />
+      </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} style={styles.scrollView}>
         <View style={styles.card}>
@@ -369,7 +376,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginTop: 10,
+    flex: 1,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginTop: 10,
     marginBottom: 20,
+  },
+  backBtn: {
+    padding: 5,
   },
   scrollView: {
     flex: 1,
@@ -377,7 +395,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     alignItems: 'center',
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   card: {
     width: '85%',
