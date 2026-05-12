@@ -445,6 +445,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 32,
     borderWidth: 1,
     borderColor: '#1e293b',
+    marginBottom: 100,
   },
   totalRow: {
     flexDirection: 'row',

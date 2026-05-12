@@ -34,10 +34,15 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
   const [comment, setComment] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
 
+  // Estados para cancelación
+  const [motivoCancelacion, setMotivoCancelacion] = useState('');
+  const [submittingCancel, setSubmittingCancel] = useState(false);
+
   const openModal = (item) => {
     setPedidoSeleccionado(item);
     setRating(0);
     setComment('');
+    setMotivoCancelacion('');
     setModalVisible(true);
   };
 
@@ -80,31 +85,101 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
   };
 
   /**
-   * Lógica para cancelar un pedido. Solo se puede si está en estado 'Pendiente'.
+   * Lógica para cancelar un pedido. (RF-029)
+   * Solo se permite si está en estados habilitados (Pendiente).
    */
   const cancelarPedido = async (item) => {
-    if (item.estado !== 'Pendiente') {
-      const msg = 'Solo puedes cancelar pedidos que aún estén en estado "Pendiente".';
-      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Aviso', msg);
+    const estadosHabilitados = ['Pendiente'];
+    
+    if (!estadosHabilitados.includes(item.estado)) {
+      const msg = `No es posible cancelar el pedido en su estado actual (${item.estado}). Solo se pueden cancelar pedidos en estado: ${estadosHabilitados.join(', ')}.`;
+      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Cancelación no permitida', msg);
       return;
     }
 
     const confirmarStr = `¿Estás seguro de que deseas cancelar el pedido #${item.id.toString().substring(0, 8).toUpperCase()}?`;
     
     const realizarCancelacion = async () => {
+      console.log("DEBUG: Iniciando proceso de cancelación para pedido:", item.id);
+      setSubmittingCancel(true);
       try {
+        // RF-029.c: Se registra el estado y el motivo en el pedido
         const { error } = await supabase
           .from('pedidos')
-          .update({ estado: 'Cancelado' })
+          .update({ 
+            estado: 'Cancelado',
+            motivo_cancelacion: motivoCancelacion.trim() || 'Cancelado por el comprador'
+          })
           .eq('id', item.id);
 
         if (error) throw error;
         
+        // --- RESTAURACIÓN DE STOCK ---
+        // Al cancelar, devolvemos las unidades al inventario (RF-029)
+        if (item.detalles && item.detalles.length > 0) {
+          console.log("DEBUG: Restaurando stock para", item.detalles.length, "productos...");
+          for (const det of item.detalles) {
+            // Obtenemos stock actual primero para evitar inconsistencias si otro proceso lo cambió
+            const { data: prodData } = await supabase
+              .from('productos')
+              .select('stock')
+              .eq('id', det.producto_id)
+              .single();
+            
+            if (prodData) {
+              const nuevoStock = (prodData.stock || 0) + det.cantidad;
+              await supabase
+                .from('productos')
+                .update({ stock: nuevoStock })
+                .eq('id', det.producto_id);
+              console.log(`DEBUG: Producto ${det.producto_id} - Stock restaurado a ${nuevoStock}`);
+            }
+          }
+        }
+        // -----------------------------
+
         fetchPedidos(); // Recargar lista
         setModalVisible(false);
-        if (Platform.OS === 'web') window.alert('Pedido cancelado correctamente.');
+        const msgExito = 'Pedido cancelado correctamente.';
+        Platform.OS === 'web' ? window.alert(msgExito) : Alert.alert('Éxito', msgExito);
       } catch (error) {
-        Alert.alert('Error', 'No se pudo cancelar el pedido: ' + error.message);
+        console.error("DEBUG: Error al cancelar pedido:", error);
+        
+        // Fallback: Si el error es por la columna motivo_cancelacion, intentamos sin ella
+        if (error.message && (error.message.includes("column") || error.message.includes("motivo_cancelacion"))) {
+           console.log("DEBUG: Reintentando sin columna motivo_cancelacion...");
+           try {
+             const { error: retryError } = await supabase
+               .from('pedidos')
+               .update({ estado: 'Cancelado' })
+               .eq('id', item.id);
+             
+             if (retryError) throw retryError;
+             
+             // Restaurar stock incluso en fallback
+             if (item.detalles && item.detalles.length > 0) {
+               for (const det of item.detalles) {
+                 const { data: prodData } = await supabase.from('productos').select('stock').eq('id', det.producto_id).single();
+                 if (prodData) {
+                   await supabase.from('productos').update({ stock: (prodData.stock || 0) + det.cantidad }).eq('id', det.producto_id);
+                 }
+               }
+             }
+
+             fetchPedidos();
+             setModalVisible(false);
+             const msgExito = 'Pedido cancelado correctamente (sin registro de motivo).';
+             Platform.OS === 'web' ? window.alert(msgExito) : Alert.alert('Éxito', msgExito);
+             return;
+           } catch (err2) {
+             console.error("DEBUG: Falló también el reintento:", err2);
+           }
+        }
+
+        const msg = 'No se pudo cancelar el pedido: ' + error.message;
+        Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Error', msg);
+      } finally {
+        setSubmittingCancel(false);
       }
     };
 
@@ -113,9 +188,9 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
         await realizarCancelacion();
       }
     } else {
-      Alert.alert('Confirmar', confirmarStr, [
-        { text: 'No', style: 'cancel' },
-        { text: 'Sí, cancelar', style: 'destructive', onPress: realizarCancelacion }
+      Alert.alert('Confirmar Cancelación', confirmarStr, [
+        { text: 'Volver', style: 'cancel' },
+        { text: 'Sí, cancelar pedido', style: 'destructive', onPress: realizarCancelacion }
       ]);
     }
   };
@@ -282,6 +357,16 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
                         {pedidoSeleccionado.estado}
                       </Text>
                     </View>
+                    
+                    {/* RF-029: Mostrar motivo solo si está cancelado */}
+                    {pedidoSeleccionado.estado === 'Cancelado' && pedidoSeleccionado.motivo_cancelacion && (
+                      <View style={styles.motivoContainer}>
+                        <Ionicons name="information-circle-outline" size={16} color="#ef4444" />
+                        <Text style={styles.motivoText}>
+                          Motivo: {pedidoSeleccionado.motivo_cancelacion}
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
                   <View style={styles.section}>
@@ -360,12 +445,28 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
                   )}
 
                   {pedidoSeleccionado.estado === 'Pendiente' && (
-                    <TouchableOpacity 
-                      style={styles.cancelarBtn}
-                      onPress={() => cancelarPedido(pedidoSeleccionado)}
-                    >
-                      <Text style={styles.cancelarBtnText}>Cancelar Pedido</Text>
-                    </TouchableOpacity>
+                    <View style={styles.section}>
+                      <Text style={styles.sectionLabel}>Gestión de Pedido:</Text>
+                      <TextInput
+                        style={styles.commentInput}
+                        placeholder="Motivo de cancelación (opcional)"
+                        placeholderTextColor="#64748b"
+                        value={motivoCancelacion}
+                        onChangeText={setMotivoCancelacion}
+                        multiline
+                      />
+                      <TouchableOpacity 
+                        style={[styles.cancelarBtn, submittingCancel && { opacity: 0.7 }]}
+                        onPress={() => cancelarPedido(pedidoSeleccionado)}
+                        disabled={submittingCancel}
+                      >
+                        {submittingCancel ? (
+                          <ActivityIndicator color="#ef4444" size="small" />
+                        ) : (
+                          <Text style={styles.cancelarBtnText}>Cancelar Pedido</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   )}
                 </ScrollView>
               </>
@@ -444,4 +545,21 @@ const styles = StyleSheet.create({
   commentInput: { backgroundColor: '#0f172a', width: '100%', borderRadius: 12, color: '#ffffff', padding: 12, minHeight: 80, textAlignVertical: 'top', marginTop: 10, borderWidth: 1, borderColor: '#334155' },
   submitRatingBtn: { backgroundColor: '#3b82f6', width: '100%', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 15 },
   submitRatingText: { color: '#ffffff', fontWeight: 'bold', fontSize: 14 },
+  motivoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+  },
+  motivoText: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontStyle: 'italic',
+    marginLeft: 8,
+    flex: 1,
+  },
 });
