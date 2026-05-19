@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar, Platform, Linking as RNLinking, Alert } from 'react-native';
 import * as Linking from 'expo-linking';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 import Login from './Login';
 import Registro from './Registro';
@@ -20,8 +23,61 @@ import { Ionicons } from '@expo/vector-icons';
 import MenuLateral from './MenuLateral';
 import BottomTab from './BottomTab';
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+export async function registerForPushNotificationsAsync() {
+  if (Platform.OS === 'web') {
+    console.log('Must use a physical mobile device for Push Notifications');
+    return null;
+  }
+  let token;
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+    });
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      console.log('Failed to get push token for push notification!');
+      return;
+    }
+    try {
+      token = (await Notifications.getExpoPushTokenAsync({
+        projectId: '70540143-c4ee-4a77-b11c-2a268623d021',
+      })).data;
+      console.log("Expo Push Token:", token);
+    } catch (e) {
+      console.log("Error getting push token:", e);
+    }
+  } else {
+    console.log('Must use physical device for Push Notifications');
+  }
+  return token;
+}
+
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('login');
+  const currentScreenRef = React.useRef('login');
+  
+  // Sincronizar el ref con el estado para usarlo en listeners de eventos
+  useEffect(() => { currentScreenRef.current = currentScreen; }, [currentScreen]);
+
   const [userData, setUserData] = useState(null);
   const [session, setSession] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -42,6 +98,7 @@ export default function App() {
   const [cart, setCart] = useState([]);
 
   const userDataRef = React.useRef(null);
+  const isFetchingProfile = React.useRef(false); // Evitar colisiones de red
   useEffect(() => { userDataRef.current = userData; }, [userData]);
 
   useEffect(() => {
@@ -109,27 +166,57 @@ export default function App() {
 
       if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
         if (session?.user) {
-          // Si ya tenemos la data en memoria, no hacer fetch otra vez (evita timeouts en refrescos de token)
+          // Si es la sesión inicial y NO seleccionó mantener sesión iniciada, cerramos la sesión
+          if (event === 'INITIAL_SESSION') {
+            try {
+              const keepSession = await AsyncStorage.getItem('keepLoggedIn');
+              if (keepSession !== 'true') {
+                console.log("INITIAL_SESSION detectada pero keepLoggedIn no es true. Cerrando sesión...");
+                await supabase.auth.signOut();
+                return;
+              }
+            } catch (asyncErr) {
+              console.error("Error al leer persistencia:", asyncErr);
+            }
+          }
+
+          // 1. Si ya tenemos la data en memoria, no hacer fetch otra vez
           if (userDataRef.current && userDataRef.current.auth_user_id === session.user.id) {
              return;
           }
+          
+          // 2. OPTIMIZACIÓN: Si estamos en el Login y es un SIGNED_IN, dejamos que Login.js 
+          // maneje la carga del perfil para evitar colisiones y delays.
+          if (currentScreenRef.current === 'login' && event === 'SIGNED_IN') {
+            console.log("Login manual detectado. Dejando que Login.js maneje la carga del perfil.");
+            return;
+          }
+          
+          // 3. Si ya hay una petición en curso, no iniciar otra
+          if (isFetchingProfile.current) {
+            console.log("Petición de perfil ya en curso, omitiendo evento duplicado.");
+            return;
+          }
 
           console.log("Evento Auth recibido. Consultando Usuarios_Registrados para:", session.user.id);
+          isFetchingProfile.current = true;
           try {
-            // Utilizamos Promise.race para evitar un hang infinito (timeout de 10 segundos)
-            const queryPromise = supabase
+            // Pequeño retardo para asegurar que la red esté lista tras el evento de auth
+            await new Promise(r => setTimeout(r, 500));
+
+            const { data: dbUser, error } = await supabase
               .from('Usuarios_Registrados')
               .select('*')
               .eq('auth_user_id', session.user.id)
               .maybeSingle();
 
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error("Timeout al consultar Usuarios_Registrados")), 10000)
-            );
-
-            const { data: dbUser, error } = await Promise.race([queryPromise, timeoutPromise]);
-
             if (error) {
+              // Si el error es un aborto por colisión de locks, lo ignoramos silenciosamente
+              if (error.message && error.message.includes('AbortError')) {
+                console.warn("Petición abortada por el sistema de locks de Supabase (concurrencia).");
+                return;
+              }
+              
               console.error("Error al consultar Usuarios_Registrados:", error);
               // Solo avisar si no estamos ya logueados
               if (!userDataRef.current) {
@@ -148,13 +235,39 @@ export default function App() {
               console.log("Perfil de usuario cargado con éxito. Navegando al dashboard.");
               setUserData(dbUser);
               setCurrentScreen('dashboard');
+
+              // --- REGISTRO Y ACTUALIZACIÓN AUTOMÁTICA DE PUSH TOKEN EN CADA INICIO/CARGA ---
+              try {
+                // Solo intentar registrar si estamos en un dispositivo físico
+                if (Platform.OS !== 'web') {
+                  const pushToken = await registerForPushNotificationsAsync();
+                  if (pushToken && pushToken !== dbUser.push_token) {
+                    console.log("Actualizando push_token desactualizado en la base de datos:", pushToken);
+                    await supabase
+                      .from('Usuarios_Registrados')
+                      .update({ push_token: pushToken })
+                      .eq('auth_user_id', session.user.id);
+                    
+                    // Actualizar estado local para consistencia inmediata
+                    setUserData(prev => prev ? { ...prev, push_token: pushToken } : prev);
+                  }
+                }
+              } catch (pushErr) {
+                console.log("Error al refrescar push_token en segundo plano:", pushErr);
+              }
             }
           } catch (err) {
+            if (err.message && err.message.includes('AbortError')) {
+               console.warn("Excepción de aborto capturada.");
+               return;
+            }
             console.error("Excepción al consultar la base de datos:", err);
             if (!userDataRef.current) {
               Alert.alert("Error de Conexión", "La base de datos está tardando demasiado en responder.");
             }
             // NO HACER signOut() aquí para no expulsar al usuario por un simple timeout de red
+          } finally {
+            isFetchingProfile.current = false;
           }
         }
       }
@@ -175,6 +288,11 @@ export default function App() {
   const toggleMenu = () => setMenuVisible(!menuVisible);
 
   const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('keepLoggedIn');
+    } catch (asyncErr) {
+      console.error("Error al limpiar persistencia:", asyncErr);
+    }
     await supabase.auth.signOut();
     setUserData(null);
     setCurrentScreen('login');
@@ -253,7 +371,7 @@ export default function App() {
               <TouchableOpacity style={styles.logoutTextButton} onPress={handleLogout}>
                 <Text style={styles.logoutText}>Cerrar Sesión</Text>
               </TouchableOpacity>
-              <Text style={styles.versionTag}>v1.6.0 - InterGea (Modern Header)</Text>
+              <Text style={styles.versionTag}>v1.8.0 - InterGea (Modern Header)</Text>
             </View>
           </View>
         </SafeAreaView>

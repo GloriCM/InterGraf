@@ -17,6 +17,8 @@
     },
     "android": {
       "package": "com.gloricm.intergea",
+      "googleServicesFile": "./google-services.json",
+      "useNextNotificationsApi": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/LOGO-Sin-Letras.png",
@@ -35,6 +37,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "expo-notifications",
       [
         "expo-build-properties",
         {

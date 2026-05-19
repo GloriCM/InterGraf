@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "875616129585",
+    "project_id": "intergea-app",
+    "storage_bucket": "intergea-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875616129585:android:e9923af3cecc80b3267b10",
+        "android_client_info": {
+          "package_name": "com.gloricm.intergea"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCs1t4TBIUvfIrm_78HfXybxs2mhss2bm0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

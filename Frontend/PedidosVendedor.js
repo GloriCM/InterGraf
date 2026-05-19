@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -38,14 +38,15 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [motivoCancelacion, setMotivoCancelacion] = useState('');
+  const [tempEstado, setTempEstado] = useState(null); // Estado seleccionado temporalmente
 
-  // Opciones de estado para el filtro y para actualización (según RF-14)
-  const estadosPosibles = ['Todos', 'Pendiente', 'En preparación', 'Enviado', 'Entregado', 'Cancelado'];
+  // Opciones de estado para el filtro y para actualizaciÃƒÂ³n (segÃƒÂºn RF-14)
+  const estadosPosibles = ['Todos', 'Pendiente', 'En preparaciÃƒÂ³n', 'Enviado', 'Entregado', 'Cancelado'];
 
   useEffect(() => {
     fetchPedidos();
 
-    // SUSCRIPCIÓN EN TIEMPO REAL A NUEVOS PEDIDOS
+    // SUSCRIPCIÃƒâ€œN EN TIEMPO REAL A NUEVOS PEDIDOS
     const canalPedidos = supabase
       .channel('public:pedidos-seller')
       .on('postgres_changes', {
@@ -56,11 +57,11 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
       }, (payload) => {
         // Al recibir un nuevo pedido, recargar lista y alertar
         fetchPedidos();
-        const msg = "¡Has recibido un nuevo pedido! Revisa la lista.";
+        const msg = "Ã‚Â¡Has recibido un nuevo pedido! Revisa la lista.";
         if (Platform.OS === 'web') {
           window.alert(msg);
         } else {
-          Alert.alert("🎉 Nuevo Pedido", msg);
+          Alert.alert("Ã°Å¸Å½â€° Nuevo Pedido", msg);
         }
       })
       .subscribe();
@@ -80,7 +81,7 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
     setLoading(true);
     try {
       // Nota: Asumimos que existe la tabla 'pedidos' vinculada por 'vendedor_id'
-      // y que tiene una relación con 'Usuarios_Registrados' para los datos del comprador.
+      // y que tiene una relaciÃƒÂ³n con 'Usuarios_Registrados' para los datos del comprador.
       const { data, error } = await supabase
         .from('pedidos')
         .select(`
@@ -95,8 +96,8 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
         .order('created_at', { ascending: sortOrder === 'asc' });
 
       if (error) {
-        // Si la tabla no existe aún, lanzará un error silencioso para el usuario
-        // pero lo logueamos para depuración.
+        // Si la tabla no existe aÃƒÂºn, lanzarÃƒÂ¡ un error silencioso para el usuario
+        // pero lo logueamos para depuraciÃƒÂ³n.
         console.error("Error al cargar pedidos:", error.message);
         setPedidos([]);
       } else {
@@ -111,13 +112,13 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
   };
 
   /**
-   * Lógica de filtrado en el cliente para los pedidos cargados (RF-013).
+   * LÃƒÂ³gica de filtrado en el cliente para los pedidos cargados (RF-013).
    */
   const pedidosFiltrados = pedidos.filter(p => {
     // 1. Filtro por Estado
     const matchEstado = filtroEstado === 'Todos' || p.estado === filtroEstado;
     
-    // 2. Filtro por Texto (Comprador o Número de Pedido)
+    // 2. Filtro por Texto (Comprador o NÃƒÂºmero de Pedido)
     const searchLower = searchText.toLowerCase();
     const matchSearch = !searchText || 
                        p.comprador?.razon_social?.toLowerCase().includes(searchLower) || 
@@ -135,7 +136,7 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
   const getBadgeStyle = (estado) => {
     switch (estado) {
       case 'Pendiente': return { bg: '#fee2e2', text: '#ef4444' };
-      case 'En preparación': return { bg: '#fef3c7', text: '#d97706' };
+      case 'En preparaciÃƒÂ³n': return { bg: '#fef3c7', text: '#d97706' };
       case 'Enviado': return { bg: '#e0f2fe', text: '#0284c7' };
       case 'Entregado': return { bg: '#dcfce7', text: '#16a34a' };
       case 'Cancelado': return { bg: '#f1f5f9', text: '#64748b' };
@@ -144,7 +145,7 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
   };
 
   /**
-   * Formatea la fecha para visualización.
+   * Formatea la fecha para visualizaciÃƒÂ³n.
    */
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -162,13 +163,13 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
       if (nuevoEstado === 'Cancelado') {
         // RF-029: Solo se permite cancelar si el estado actual es 'Pendiente'
         if (pedidoSeleccionado?.estado !== 'Pendiente') {
-          const msg = `No se puede cancelar un pedido que ya está en estado: ${pedidoSeleccionado?.estado}`;
-          Platform.OS === 'web' ? window.alert(msg) : Alert.alert("Acción no permitida", msg);
+          const msg = `No se puede cancelar un pedido que ya estÃƒÂ¡ en estado: ${pedidoSeleccionado?.estado}`;
+          Platform.OS === 'web' ? window.alert(msg) : Alert.alert("AcciÃƒÂ³n no permitida", msg);
           return;
         }
 
         if (!motivoCancelacion.trim()) {
-          const msg = "Por favor, escribe un motivo para la cancelación del pedido.";
+          const msg = "Por favor, escribe un motivo para la cancelaciÃƒÂ³n del pedido.";
           Platform.OS === 'web' ? window.alert(msg) : Alert.alert("Motivo requerido", msg);
           return;
         }
@@ -182,7 +183,7 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
 
       if (error) throw error;
       
-      // --- RESTAURACIÓN DE STOCK (RF-029) ---
+      // --- RESTAURACIÃƒâ€œN DE STOCK (RF-029) ---
       // Si el pedido se cancela, devolvemos el stock al inventario
       if (nuevoEstado === 'Cancelado' && pedidoSeleccionado?.estado !== 'Cancelado') {
         console.log("DEBUG: Vendedor cancelando. Restaurando stock...");
@@ -247,7 +248,7 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
           if (Platform.OS === 'web') window.alert(`Estado actualizado a ${nuevoEstado} (sin motivo)`);
           return;
         } catch (err2) {
-          console.error("DEBUG: Falló también el reintento:", err2);
+          console.error("DEBUG: FallÃƒÂ³ tambiÃƒÂ©n el reintento:", err2);
         }
       }
 
@@ -265,6 +266,7 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
         onPress={() => {
           setPedidoSeleccionado(item);
           setMotivoCancelacion('');
+          setTempEstado(item.estado);
           setModalVisible(true);
         }}
       >
@@ -301,7 +303,7 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
       {/* HEADER PRINCIPAL INTERGEA */}
       <Header onMenuPress={onToggleMenu} />
 
-      {/* HEADER DE LA SECCIÓN (PEDIDOS RECIBIDOS) */}
+      {/* HEADER DE LA SECCIÃƒâ€œN (PEDIDOS RECIBIDOS) */}
       <View style={styles.header}>
         <View style={styles.topRow}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
@@ -313,7 +315,7 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
           </TouchableOpacity>
         </View>
 
-        {/* BARRA DE BÚSQUEDA Y FILTRO */}
+        {/* BARRA DE BÃƒÅ¡SQUEDA Y FILTRO */}
         <View style={styles.searchBarContainer}>
           <View style={styles.searchWrapper}>
             <Ionicons name="search" size={18} color="#94a3b8" />
@@ -370,21 +372,21 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
             </View>
 
             <View style={{ marginTop: 20 }}>
-              <Text style={styles.filterLabel}>Orden Cronológico:</Text>
+              <Text style={styles.filterLabel}>Orden CronolÃƒÂ³gico:</Text>
               <View style={{ flexDirection: 'row' }}>
                 <TouchableOpacity 
                   style={[styles.chip, sortOrder === 'desc' && styles.chipActive]}
                   onPress={() => { setSortOrder('desc'); fetchPedidos(); }}
                 >
                   <Ionicons name="arrow-down" size={12} color={sortOrder === 'desc' ? "#ffffff" : "#94a3b8"} />
-                  <Text style={[styles.chipText, sortOrder === 'desc' && styles.chipTextActive, { marginLeft: 4 }]}>Más recientes primero</Text>
+                  <Text style={[styles.chipText, sortOrder === 'desc' && styles.chipTextActive, { marginLeft: 4 }]}>MÃƒÂ¡s recientes primero</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={[styles.chip, sortOrder === 'asc' && styles.chipActive]}
                   onPress={() => { setSortOrder('asc'); fetchPedidos(); }}
                 >
                   <Ionicons name="arrow-up" size={12} color={sortOrder === 'asc' ? "#ffffff" : "#94a3b8"} />
-                  <Text style={[styles.chipText, sortOrder === 'asc' && styles.chipTextActive, { marginLeft: 4 }]}>Más antiguos primero</Text>
+                  <Text style={[styles.chipText, sortOrder === 'asc' && styles.chipTextActive, { marginLeft: 4 }]}>MÃƒÂ¡s antiguos primero</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -448,7 +450,7 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
                   </View>
 
                   <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>Estado Actual:</Text>
+                    <Text style={styles.detailLabel}>Cambiar Estado:</Text>
                     <View style={styles.statusPicker}>
                       {estadosPosibles.filter(e => e !== 'Todos').map(est => {
                         const isCancelado = est === 'Cancelado';
@@ -460,34 +462,56 @@ export default function PedidosVendedor({ userData, onBack, onNavigate, onToggle
                             key={est}
                             style={[
                               styles.statusOption, 
-                              pedidoSeleccionado.estado === est && styles.statusOptionActive,
+                              tempEstado === est && styles.statusOptionActive,
                               disabled && { opacity: 0.3 }
                             ]}
-                            onPress={() => cambiarEstado(pedidoSeleccionado.id, est)}
+                            onPress={() => setTempEstado(est)}
                             disabled={disabled}
                           >
-                            <Text style={[styles.statusOptionText, pedidoSeleccionado.estado === est && styles.statusOptionTextActive]}>{est}</Text>
+                            <Text style={[styles.statusOptionText, tempEstado === est && styles.statusOptionTextActive]}>{est}</Text>
                           </TouchableOpacity>
                         );
                       })}
                     </View>
                     
-                    {/* RF-029: Entrada de motivo si el vendedor desea cancelar */}
-                    {pedidoSeleccionado.estado !== 'Cancelado' && (
-                      <View style={{ marginTop: 15 }}>
-                        <Text style={styles.detailLabel}>Motivo de Cancelación (Si aplica):</Text>
+                    {/* FLUJO DE CANCELACIÃ“N: Solo si el estado seleccionado es 'Cancelado' y no estaba ya cancelado */}
+                    {tempEstado === 'Cancelado' && pedidoSeleccionado.estado !== 'Cancelado' && (
+                      <View style={styles.cancellationFlow}>
+                        <Ionicons name="warning-outline" size={24} color="#ef4444" style={{ alignSelf: 'center', marginBottom: 10 }} />
+                        <Text style={styles.cancelWarningTitle}>Â¿Deseas cancelar este pedido?</Text>
+                        <Text style={styles.cancelWarningSub}>Esta acciÃ³n devolverÃ¡ el stock a tu inventario.</Text>
+                        
+                        <Text style={styles.detailLabel}>Motivo de la cancelaciÃ³n:</Text>
                         <TextInput
                           style={styles.reasonInput}
-                          placeholder="Escribe el motivo antes de seleccionar 'Cancelado'"
+                          placeholder="Escribe el motivo aquÃ­..."
                           placeholderTextColor="#64748b"
                           value={motivoCancelacion}
                           onChangeText={setMotivoCancelacion}
                           multiline
                         />
+                        
+                        <TouchableOpacity 
+                          style={styles.btnGuardarCancelacion}
+                          onPress={() => cambiarEstado(pedidoSeleccionado.id, 'Cancelado')}
+                        >
+                          <Text style={styles.btnGuardarText}>Confirmar y Cancelar Pedido</Text>
+                        </TouchableOpacity>
                       </View>
                     )}
 
-                    {/* RF-029: Mostrar motivo solo si está cancelado */}
+                    {/* FLUJO DE ACTUALIZACIÃ“N NORMAL: Para cualquier otro estado seleccionado */}
+                    {tempEstado !== pedidoSeleccionado.estado && tempEstado !== 'Cancelado' && (
+                      <TouchableOpacity 
+                        style={styles.btnActualizarEstado}
+                        onPress={() => cambiarEstado(pedidoSeleccionado.id, tempEstado)}
+                      >
+                        <Ionicons name="save-outline" size={20} color="#ffffff" />
+                        <Text style={styles.btnGuardarText}>Actualizar a {tempEstado}</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Mostrar motivo si YA estÃ¡ cancelado */}
                     {pedidoSeleccionado.estado === 'Cancelado' && pedidoSeleccionado.motivo_cancelacion && (
                       <View style={styles.motivoContainer}>
                         <Ionicons name="information-circle-outline" size={16} color="#ef4444" />
@@ -844,5 +868,48 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginLeft: 8,
     flex: 1,
+  },
+  cancellationFlow: {
+    marginTop: 20,
+    backgroundColor: "rgba(239, 68, 68, 0.05)",
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.2)",
+  },
+  cancelWarningTitle: {
+    color: "#ef4444",
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  cancelWarningSub: {
+    color: "#94a3b8",
+    fontSize: 12,
+    textAlign: "center",
+    marginBottom: 15,
+  },
+  btnGuardarCancelacion: {
+    backgroundColor: "#ef4444",
+    height: 48,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 15,
+  },
+  btnActualizarEstado: {
+    backgroundColor: "#3b82f6",
+    height: 48,
+    borderRadius: 12,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 20,
+    gap: 10,
+  },
+  btnGuardarText: {
+    color: "#ffffff",
+    fontWeight: "bold",
+    fontSize: 14,
   },
 });

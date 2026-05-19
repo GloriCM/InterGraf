@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView, StatusBar, Alert, ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
+import { registerForPushNotificationsAsync } from './App';
 
 export default function Login({ onRegisterPress, onRecoverPasswordPress, onLoginSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
 
   // Función para validar las credenciales usando Supabase Auth
   const handleLogin = async () => {
@@ -46,12 +49,57 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
         return;
       }
 
-      console.log("Login exitoso en Auth. Esperando redirección de App.js...");
-      // En caso de que App.js falle al encontrar el perfil y no nos desmonte,
-      // quitamos el spinner después de un tiempo para no dejar bloqueada la pantalla.
-      setTimeout(() => {
+      console.log("Login exitoso en Auth. Obteniendo perfil...");
+      
+      // 2. Obtener los datos del perfil inmediatamente (más confiable que esperar al listener global)
+      const { data: dbUser, error: dbError } = await supabase
+        .from('Usuarios_Registrados')
+        .select('*')
+        .eq('auth_user_id', authData.user.id)
+        .maybeSingle();
+
+      if (dbError) {
+        console.error("Error al obtener perfil en login:", dbError);
+        throw new Error("No pudimos cargar tu perfil. Revisa tu conexión.");
+      }
+
+      if (!dbUser) {
+        console.warn("Perfil no encontrado para:", authData.user.id);
+        Alert.alert("Perfil no encontrado", "Tu cuenta existe pero no hay datos de empresa. Contacta soporte.");
+        await supabase.auth.signOut();
         setLoading(false);
-      }, 5000);
+        return;
+      }
+
+      console.log("Perfil obtenido con éxito. Redirigiendo...");
+
+      // 3. Registrar para notificaciones y guardar el token
+      try {
+        const pushToken = await registerForPushNotificationsAsync();
+        if (pushToken) {
+          console.log("Guardando push_token en perfil:", pushToken);
+          await supabase
+            .from('Usuarios_Registrados')
+            .update({ push_token: pushToken })
+            .eq('auth_user_id', authData.user.id);
+        }
+      } catch (e) {
+        console.log("Error al registrar notificaciones:", e);
+      }
+
+      // Guardar preferencia de mantener sesión iniciada
+      try {
+        if (keepLoggedIn) {
+          await AsyncStorage.setItem('keepLoggedIn', 'true');
+        } else {
+          await AsyncStorage.setItem('keepLoggedIn', 'false');
+        }
+      } catch (asyncErr) {
+        console.error("Error al guardar persistencia:", asyncErr);
+      }
+
+      onLoginSuccess(dbUser);
+      setLoading(false);
 
     } catch (err) {
       setLoading(false);
@@ -125,6 +173,18 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
               </View>
             </View>
 
+            {/* Mantener sesión iniciada */}
+            <TouchableOpacity 
+              style={styles.rememberMeContainer} 
+              onPress={() => setKeepLoggedIn(!keepLoggedIn)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.checkbox, keepLoggedIn && styles.checkboxChecked]}>
+                {keepLoggedIn && <Ionicons name="checkmark" size={14} color="#ffffff" />}
+              </View>
+              <Text style={styles.rememberMeText}>Mantener sesión iniciada</Text>
+            </TouchableOpacity>
+
             {/* Botón principal de entrada con indicador de carga */}
             <TouchableOpacity
               style={[styles.loginButton, loading && { opacity: 0.7 }]}
@@ -152,7 +212,7 @@ export default function Login({ onRegisterPress, onRecoverPasswordPress, onLogin
             </View>
 
             {/* Etiqueta de versión para control de actualizaciones */}
-            <Text style={styles.versionTag}>v1.6.0 - InterGea (Modern Header)</Text>
+            <Text style={styles.versionTag}>v1.8.0 - InterGea (Modern Header)</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -246,6 +306,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
     marginBottom: 25,
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 20,
+    paddingHorizontal: 5,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#475569',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    backgroundColor: 'transparent',
+  },
+  checkboxChecked: {
+    backgroundColor: '#0891b2',
+    borderColor: '#0891b2',
+  },
+  rememberMeText: {
+    color: '#cbd5e1',
+    fontSize: 14,
   },
   loginButtonText: {
     color: '#ffffff',

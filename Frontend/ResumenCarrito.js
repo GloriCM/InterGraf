@@ -193,6 +193,8 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
         if (pedidoError) throw pedidoError;
         creados.push(pedido.id);
 
+        // Las notificaciones ahora se envían en handleConfirmarPago tras validación del pago.
+
         const detalles = itemsVendedor.map(it => ({
           pedido_id: pedido.id,
           producto_id: it.id,
@@ -244,6 +246,84 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
       for (const pedidoId of pedidosCreados) {
         await supabase.from('pedidos').update({ estado: 'En preparación' }).eq('id', pedidoId);
       }
+
+      // --- SEGURO DOBLE: NOTIFICACIÓN PUSH DESDE MÓVIL (EVITA CORS EN PC Y ASEGURA MÓVIL) ---
+      if (Platform.OS !== 'web') {
+        try {
+          const vendedoresIds = [...new Set(cart.map(item => item.Usuarios_Registrados?.auth_user_id || item.vendedor_id))];
+          for (const vId of vendedoresIds) {
+            if (!vId) continue;
+
+            const itemsVendedor = cart.filter(it => (it.Usuarios_Registrados?.auth_user_id || it.vendedor_id) === vId);
+            const subtotal = itemsVendedor.reduce((acc, it) => acc + (it.precio * it.cantidadSeleccionada), 0);
+
+            // 1. Notificación al Vendedor
+            try {
+              let query = supabase.from('Usuarios_Registrados').select('push_token');
+              if (isNaN(vId)) {
+                query = query.eq('auth_user_id', vId);
+              } else {
+                query = query.eq('id', parseInt(vId));
+              }
+              const { data: vendedor } = await query.single();
+
+              if (vendedor && vendedor.push_token) {
+                console.log("Enviando push móvil al vendedor:", vendedor.push_token);
+                await fetch('https://exp.host/--/api/v2/push/send', {
+                  method: 'POST',
+                  headers: {
+                    Accept: 'application/json',
+                    'Accept-encoding': 'gzip, deflate',
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    to: vendedor.push_token,
+                    sound: 'default',
+                    title: '🛒 ¡Nuevo Pedido Pagado!',
+                    body: `¡Felicidades! Tienes un nuevo pedido pagado por $${subtotal.toLocaleString()} de ${userData.razon_social || 'un cliente'}.`,
+                    data: { pantalla: 'pedidos_vendedor' },
+                  }),
+                });
+              }
+            } catch (pushErr) {
+              console.error("Error push móvil vendedor:", pushErr);
+            }
+
+            // 2. Notificación al Comprador
+            try {
+              const { data: comprador } = await supabase
+                .from('Usuarios_Registrados')
+                .select('push_token')
+                .eq('auth_user_id', userData.auth_user_id)
+                .single();
+
+              if (comprador && comprador.push_token) {
+                console.log("Enviando push móvil al comprador:", comprador.push_token);
+                await fetch('https://exp.host/--/api/v2/push/send', {
+                  method: 'POST',
+                  headers: {
+                    Accept: 'application/json',
+                    'Accept-encoding': 'gzip, deflate',
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    to: comprador.push_token,
+                    sound: 'default',
+                    title: '✅ ¡Pago Confirmado!',
+                    body: `Tu pago de $${subtotal.toLocaleString()} fue recibido con éxito. Tu pedido ya está en preparación.`,
+                    data: { pantalla: 'pedidos_comprador' },
+                  }),
+                });
+              }
+            } catch (pushErr) {
+              console.error("Error push móvil comprador:", pushErr);
+            }
+          }
+        } catch (notiErr) {
+          console.error("Error general en notificaciones móviles:", notiErr);
+        }
+      }
+      // --- FIN NOTIFICACIONES MÓVILES ---
       
       setCart([]);
       onNavigate('pedidos_comprador');
@@ -338,6 +418,11 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
           state={paymentModalState} 
           onConfirmar={handleConfirmarPago} 
           onCancelar={handleCancelarPago} 
+          onPayLater={() => {
+            setPaymentModalState(null);
+            setCart([]);
+            onNavigate('pedidos_comprador');
+          }}
         />
         {cart.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -387,7 +472,7 @@ export default function ResumenCarrito({ userData, cart, setCart, onBack, onNavi
 /**
  * MODAL DE GENERACIÓN DE PAGO WOMPI
  */
-function PaymentModal({ state, onConfirmar, onCancelar }) {
+function PaymentModal({ state, onConfirmar, onCancelar, onPayLater }) {
     if (!state) return null;
 
     return (
@@ -413,6 +498,13 @@ function PaymentModal({ state, onConfirmar, onCancelar }) {
                             
                             <TouchableOpacity style={styles.btnConfirmar} onPress={onConfirmar}>
                                 <Text style={styles.btnConfirmarText}>Ya completé el pago</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity 
+                                style={[styles.btnConfirmar, { backgroundColor: '#1e293b', marginTop: 10, borderWidth: 1, borderColor: '#334155' }]} 
+                                onPress={onPayLater}
+                            >
+                                <Text style={styles.btnConfirmarText}>Pagar después</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.btnCancelar} onPress={onCancelar}>

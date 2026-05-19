@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -19,7 +19,7 @@ import { supabase } from './supabase';
 import Header from './Header';
 
 /**
- * COMPONENTE: PEDIDOS COMPRADOR (Sección 3.4)
+ * COMPONENTE: PEDIDOS COMPRADOR (Secci├│n 3.4)
  * Muestra el historial de compras realizadas por la empresa.
  */
 export default function PedidosComprador({ userData, onBack, onNavigate, onToggleMenu }) {
@@ -34,7 +34,7 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
   const [comment, setComment] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
 
-  // Estados para cancelación
+  // Estados para cancelaci├│n
   const [motivoCancelacion, setMotivoCancelacion] = useState('');
   const [submittingCancel, setSubmittingCancel] = useState(false);
 
@@ -85,22 +85,22 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
   };
 
   /**
-   * Lógica para cancelar un pedido. (RF-029)
-   * Solo se permite si está en estados habilitados (Pendiente).
+   * L├│gica para cancelar un pedido. (RF-029)
+   * Solo se permite si est├í en estados habilitados (Pendiente).
    */
   const cancelarPedido = async (item) => {
     const estadosHabilitados = ['Pendiente'];
     
     if (!estadosHabilitados.includes(item.estado)) {
       const msg = `No es posible cancelar el pedido en su estado actual (${item.estado}). Solo se pueden cancelar pedidos en estado: ${estadosHabilitados.join(', ')}.`;
-      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Cancelación no permitida', msg);
+      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Cancelaci├│n no permitida', msg);
       return;
     }
 
-    const confirmarStr = `¿Estás seguro de que deseas cancelar el pedido #${item.id.toString().substring(0, 8).toUpperCase()}?`;
+    const confirmarStr = `┬┐Est├ís seguro de que deseas cancelar el pedido #${item.id.toString().substring(0, 8).toUpperCase()}?`;
     
     const realizarCancelacion = async () => {
-      console.log("DEBUG: Iniciando proceso de cancelación para pedido:", item.id);
+      console.log("DEBUG: Iniciando proceso de cancelaci├│n para pedido:", item.id);
       setSubmittingCancel(true);
       try {
         // RF-029.c: Se registra el estado y el motivo en el pedido
@@ -114,12 +114,12 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
 
         if (error) throw error;
         
-        // --- RESTAURACIÓN DE STOCK ---
+        // --- RESTAURACI├ôN DE STOCK ---
         // Al cancelar, devolvemos las unidades al inventario (RF-029)
         if (item.detalles && item.detalles.length > 0) {
           console.log("DEBUG: Restaurando stock para", item.detalles.length, "productos...");
           for (const det of item.detalles) {
-            // Obtenemos stock actual primero para evitar inconsistencias si otro proceso lo cambió
+            // Obtenemos stock actual primero para evitar inconsistencias si otro proceso lo cambi├│
             const { data: prodData } = await supabase
               .from('productos')
               .select('stock')
@@ -141,7 +141,7 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
         fetchPedidos(); // Recargar lista
         setModalVisible(false);
         const msgExito = 'Pedido cancelado correctamente.';
-        Platform.OS === 'web' ? window.alert(msgExito) : Alert.alert('Éxito', msgExito);
+        Platform.OS === 'web' ? window.alert(msgExito) : Alert.alert('├ëxito', msgExito);
       } catch (error) {
         console.error("DEBUG: Error al cancelar pedido:", error);
         
@@ -169,10 +169,10 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
              fetchPedidos();
              setModalVisible(false);
              const msgExito = 'Pedido cancelado correctamente (sin registro de motivo).';
-             Platform.OS === 'web' ? window.alert(msgExito) : Alert.alert('Éxito', msgExito);
+             Platform.OS === 'web' ? window.alert(msgExito) : Alert.alert('├ëxito', msgExito);
              return;
            } catch (err2) {
-             console.error("DEBUG: Falló también el reintento:", err2);
+             console.error("DEBUG: Fall├│ tambi├®n el reintento:", err2);
            }
         }
 
@@ -188,9 +188,9 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
         await realizarCancelacion();
       }
     } else {
-      Alert.alert('Confirmar Cancelación', confirmarStr, [
+      Alert.alert('Confirmar Cancelaci├│n', confirmarStr, [
         { text: 'Volver', style: 'cancel' },
-        { text: 'Sí, cancelar pedido', style: 'destructive', onPress: realizarCancelacion }
+        { text: 'S├¡, cancelar pedido', style: 'destructive', onPress: realizarCancelacion }
       ]);
     }
   };
@@ -227,8 +227,8 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
       setPedidoSeleccionado({ ...pedidoSeleccionado, estado: nuevoEstado });
       fetchPedidos();
       
-      const msg = nuevoEstado === 'En preparación' 
-        ? 'Pago aprobado. El pedido ahora está En Preparación.' 
+      const msg = nuevoEstado === 'En preparaci├│n' 
+        ? 'Pago aprobado. El pedido ahora est├í En Preparaci├│n.' 
         : 'Pago rechazado. El pedido ha sido cancelado y el stock devuelto.';
         
       if (Platform.OS === 'web') window.alert(msg);
@@ -239,11 +239,11 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
   };
 
   /**
-   * Envía la calificación del pedido a Supabase
+   * Env├¡a la calificaci├│n del pedido a Supabase
    */
   const submitRating = async () => {
     if (rating === 0) {
-      const msg = 'Por favor selecciona una calificación de 1 a 5 estrellas.';
+      const msg = 'Por favor selecciona una calificaci├│n de 1 a 5 estrellas.';
       Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Error', msg);
       return;
     }
@@ -259,16 +259,16 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
       // Actualizar estado local
       setPedidoSeleccionado({ ...pedidoSeleccionado, calificacion: rating, comentario_calificacion: comment });
       fetchPedidos();
-      if (Platform.OS === 'web') window.alert('Calificación enviada correctamente.');
+      if (Platform.OS === 'web') window.alert('Calificaci├│n enviada correctamente.');
     } catch (error) {
-      Alert.alert('Error', 'No se pudo enviar la calificación: ' + error.message);
+      Alert.alert('Error', 'No se pudo enviar la calificaci├│n: ' + error.message);
     } finally {
       setSubmittingRating(false);
     }
   };
 
   /**
-   * Abre la mensajería con el vendedor directamente.
+   * Abre la mensajer├¡a con el vendedor directamente.
    */
   const contactarVendedor = (vendedorId) => {
     setModalVisible(false);
@@ -278,7 +278,7 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
   const getBadgeStyle = (estado) => {
     switch (estado) {
       case 'Pendiente': return { bg: '#fee2e2', text: '#ef4444' };
-      case 'En preparación': return { bg: '#fef3c7', text: '#d97706' };
+      case 'En preparaci├│n': return { bg: '#fef3c7', text: '#d97706' };
       case 'Enviado': return { bg: '#e0f2fe', text: '#0284c7' };
       case 'Entregado': return { bg: '#dcfce7', text: '#16a34a' };
       case 'Cancelado': return { bg: '#f1f5f9', text: '#64748b' };
@@ -328,9 +328,9 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
       {/* HEADER PRINCIPAL INTERGEA */}
       <Header onMenuPress={onToggleMenu} />
 
-      {/* HEADER DE LA SECCIÓN (MIS PEDIDOS) */}
+      {/* HEADER DE LA SECCI├ôN (MIS PEDIDOS) */}
       <View style={styles.header}>
-        {/* Espaciador invisible para mantener el título centrado */}
+        {/* Espaciador invisible para mantener el t├¡tulo centrado */}
         <TouchableOpacity onPress={() => onNavigate('comprador')} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
@@ -356,7 +356,7 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="cart-outline" size={60} color="#1e293b" />
-              <Text style={styles.emptyText}>No has realizado pedidos aún.</Text>
+              <Text style={styles.emptyText}>No has realizado pedidos a├║n.</Text>
             </View>
           }
         />
@@ -393,7 +393,7 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
                   </View>
 
                   <View style={styles.section}>
-                    <Text style={styles.sectionLabel}>Estado de Envío:</Text>
+                    <Text style={styles.sectionLabel}>Estado de Env├¡o:</Text>
                     <View style={[styles.statusBanner, { backgroundColor: getBadgeStyle(pedidoSeleccionado.estado).bg + '20' }]}>
                       <Ionicons name="cube" size={20} color={getBadgeStyle(pedidoSeleccionado.estado).text} />
                       <Text style={[styles.statusBannerText, { color: getBadgeStyle(pedidoSeleccionado.estado).text }]}>
@@ -401,7 +401,7 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
                       </Text>
                     </View>
                     
-                    {/* RF-029: Mostrar motivo solo si está cancelado */}
+                    {/* RF-029: Mostrar motivo solo si est├í cancelado */}
                     {pedidoSeleccionado.estado === 'Cancelado' && pedidoSeleccionado.motivo_cancelacion && (
                       <View style={styles.motivoContainer}>
                         <Ionicons name="information-circle-outline" size={16} color="#ef4444" />
@@ -428,10 +428,10 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
                     <Text style={styles.totalValueFooter}>${pedidoSeleccionado.total}</Text>
                   </View>
 
-                  {/* SECCIÓN DE CALIFICACIÓN */}
+                  {/* SECCI├ôN DE CALIFICACI├ôN */}
                   {pedidoSeleccionado.estado === 'Entregado' && (
                     <View style={styles.section}>
-                      <Text style={styles.sectionLabel}>Calificación del Pedido:</Text>
+                      <Text style={styles.sectionLabel}>Calificaci├│n del Pedido:</Text>
                       {pedidoSeleccionado.calificacion ? (
                         <View style={styles.ratingCard}>
                           <View style={styles.starsContainer}>
@@ -447,11 +447,11 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
                           {pedidoSeleccionado.comentario_calificacion ? (
                             <Text style={styles.ratingComment}>"{pedidoSeleccionado.comentario_calificacion}"</Text>
                           ) : null}
-                          <Text style={styles.ratedText}>¡Gracias por tu calificación!</Text>
+                          <Text style={styles.ratedText}>┬íGracias por tu calificaci├│n!</Text>
                         </View>
                       ) : (
                         <View style={styles.ratingCard}>
-                          <Text style={styles.ratingPrompt}>¿Cómo calificarías este pedido?</Text>
+                          <Text style={styles.ratingPrompt}>┬┐C├│mo calificar├¡as este pedido?</Text>
                           <View style={styles.starsContainer}>
                             {[1, 2, 3, 4, 5].map((star) => (
                               <TouchableOpacity key={star} onPress={() => setRating(star)}>
@@ -479,7 +479,7 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
                             {submittingRating ? (
                               <ActivityIndicator color="#ffffff" size="small" />
                             ) : (
-                              <Text style={styles.submitRatingText}>Enviar Calificación</Text>
+                              <Text style={styles.submitRatingText}>Enviar Calificaci├│n</Text>
                             )}
                           </TouchableOpacity>
                         </View>
@@ -488,9 +488,8 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
                   )}
 
                   {pedidoSeleccionado.estado === 'Pendiente' && (
-                  {pedidoSeleccionado.estado === 'Pendiente' && (
                     <View style={styles.section}>
-                      <Text style={styles.sectionLabel}>Gestión de Pedido:</Text>
+                      <Text style={styles.sectionLabel}>Gesti├│n de Pedido:</Text>
                       
                       {/* Simulador de Pago Wompi (Para desarrollo/testing) */}
                       <View style={styles.simuladorContainer}>
@@ -498,7 +497,7 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
                         <View style={styles.simuladorActions}>
                           <TouchableOpacity 
                             style={[styles.simularBtn, { backgroundColor: 'rgba(16, 185, 129, 0.1)', borderColor: '#10b981' }]}
-                            onPress={() => simularPago(pedidoSeleccionado, 'En preparación')}
+                            onPress={() => simularPago(pedidoSeleccionado, 'En preparaci├│n')}
                           >
                             <Ionicons name="checkmark-circle-outline" size={20} color="#10b981" />
                             <Text style={[styles.simularBtnText, { color: '#10b981' }]}>Aprobar</Text>
@@ -514,11 +513,11 @@ export default function PedidosComprador({ userData, onBack, onNavigate, onToggl
                         </View>
                       </View>
 
-                      {/* RF-029: Cancelación con Motivo */}
+                      {/* RF-029: Cancelaci├│n con Motivo */}
                       <View style={{ marginTop: 20 }}>
                         <TextInput
                           style={styles.commentInput}
-                          placeholder="Motivo de cancelación (opcional)"
+                          placeholder="Motivo de cancelaci├│n (opcional)"
                           placeholderTextColor="#64748b"
                           value={motivoCancelacion}
                           onChangeText={setMotivoCancelacion}
